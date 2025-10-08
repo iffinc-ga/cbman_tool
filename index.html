@@ -143,20 +143,20 @@
                     return { found: false, reason: `Part number ${partNumber} not found in CB Manufacturing DB` };
                 }
 
-                // Look for tariff numbers that start with 3
+                // Look for tariff numbers that DON'T start with 9
                 const tariffColumns = ['TARIFF NUM', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4', 'TARIFF NUM_5'];
                 let tariffNumber = null;
                 
                 for (const col of tariffColumns) {
-                    const tariff = String(part[col] || '');
-                    if (tariff && tariff.startsWith('3')) {
+                    const tariff = String(part[col] || '').trim();
+                    if (tariff && !tariff.startsWith('9')) {
                         tariffNumber = tariff;
                         break;
                     }
                 }
 
                 if (!tariffNumber) {
-                    return { found: false, reason: 'No tariff number starting with 3 found' };
+                    return { found: false, reason: 'No tariff number found (all start with 9 or empty)' };
                 }
 
                 // Check if tariff exists in Sheet1 mappings

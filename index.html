@@ -303,18 +303,20 @@
                 let updatedOriginalRow = rowToDuplicate;
                 if (hasCustomValues) {
                     updatedOriginalRow = { ...rowToDuplicate };
-                    updatedOriginalRow.ItemTotal = (rowToDuplicate.ItemTotal || 0) - newRowItemTotal;
-                    newRow._subtractedItemTotal = newRowItemTotal;
                     
+                    // Only quantity provided and nothing else - reduce both quantity and recalculate ItemTotal
                     if (quantity !== '' && unitPrice === '' && itemTotal === '') {
-                        // Only quantity provided - reduce quantity and recalculate ItemTotal
                         const subtractedQuantity = parseFloat(quantity);
                         const remainingQty = (rowToDuplicate.Quantity || 0) - subtractedQuantity;
                         updatedOriginalRow.Quantity = remainingQty;
                         updatedOriginalRow.ItemTotal = remainingQty * (rowToDuplicate.UnitPrice || 0);
                         newRow._subtractedQuantity = subtractedQuantity;
                     } else {
-                        // For other cases (unitPrice, itemTotal, or combinations), recalculate unit price
+                        // Any other case - quantity stays same, ItemTotal is reduced, unit price must be recalculated
+                        updatedOriginalRow.ItemTotal = (rowToDuplicate.ItemTotal || 0) - newRowItemTotal;
+                        newRow._subtractedItemTotal = newRowItemTotal;
+                        
+                        // Recalculate unit price for the original row
                         const remainingQty = updatedOriginalRow.Quantity || 0;
                         if (remainingQty > 0) {
                             updatedOriginalRow.UnitPrice = updatedOriginalRow.ItemTotal / remainingQty;

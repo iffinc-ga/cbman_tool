@@ -301,40 +301,52 @@
                 newRow._isDuplicate = true;
 
                 const hasCustomValues = quantity !== '' || unitPrice !== '' || itemTotal !== '';
+                
+                // Calculate new row values
+                let newRowQuantity = rowToDuplicate.Quantity;
+                let newRowUnitPrice = rowToDuplicate.UnitPrice;
                 let newRowItemTotal = rowToDuplicate.ItemTotal;
 
                 if (quantity !== '') {
-                    newRow.Quantity = parseFloat(quantity);
+                    newRowQuantity = parseFloat(quantity);
+                    newRow.Quantity = newRowQuantity;
                 }
                 if (unitPrice !== '') {
-                    newRow.UnitPrice = parseFloat(unitPrice);
+                    newRowUnitPrice = parseFloat(unitPrice);
+                    newRow.UnitPrice = newRowUnitPrice;
                 }
                 if (itemTotal !== '') {
-                    newRow.ItemTotal = parseFloat(itemTotal);
                     newRowItemTotal = parseFloat(itemTotal);
-                } else if (quantity !== '' && unitPrice !== '') {
-                    newRow.ItemTotal = parseFloat(quantity) * parseFloat(unitPrice);
-                    newRowItemTotal = parseFloat(quantity) * parseFloat(unitPrice);
+                    newRow.ItemTotal = newRowItemTotal;
                 } else if (quantity !== '' || unitPrice !== '') {
-                    const finalQuantity = quantity !== '' ? parseFloat(quantity) : rowToDuplicate.Quantity;
-                    const finalUnitPrice = unitPrice !== '' ? parseFloat(unitPrice) : rowToDuplicate.UnitPrice;
-                    newRow.ItemTotal = finalQuantity * finalUnitPrice;
-                    newRowItemTotal = finalQuantity * finalUnitPrice;
+                    // Recalculate ItemTotal based on provided values
+                    newRowItemTotal = newRowQuantity * newRowUnitPrice;
+                    newRow.ItemTotal = newRowItemTotal;
                 }
 
+                // Update original row if custom values were provided
                 let updatedOriginalRow = rowToDuplicate;
                 if (hasCustomValues) {
                     updatedOriginalRow = { ...rowToDuplicate };
-                    updatedOriginalRow.ItemTotal = (rowToDuplicate.ItemTotal || 0) - newRowItemTotal;
-                    newRow._subtractedItemTotal = newRowItemTotal;
                     
-                    if (quantity !== '' && unitPrice === '' && itemTotal === '') {
-                        const subtractedQuantity = parseFloat(quantity);
-                        const remainingQty = (rowToDuplicate.Quantity || 0) - subtractedQuantity;
-                        updatedOriginalRow.Quantity = remainingQty;
-                        updatedOriginalRow.ItemTotal = remainingQty * (rowToDuplicate.UnitPrice || 0);
-                        newRow._subtractedQuantity = subtractedQuantity;
+                    // Calculate remaining values for original row
+                    const remainingQuantity = (rowToDuplicate.Quantity || 0) - newRowQuantity;
+                    const remainingItemTotal = (rowToDuplicate.ItemTotal || 0) - newRowItemTotal;
+                    
+                    updatedOriginalRow.Quantity = remainingQuantity;
+                    updatedOriginalRow.ItemTotal = remainingItemTotal;
+                    
+                    // Recalculate unit price for original row based on remaining values
+                    if (remainingQuantity > 0) {
+                        updatedOriginalRow.UnitPrice = remainingItemTotal / remainingQuantity;
+                    } else {
+                        updatedOriginalRow.UnitPrice = 0;
                     }
+                    
+                    // Store subtracted values for restoration on delete
+                    newRow._subtractedQuantity = newRowQuantity;
+                    newRow._subtractedUnitPrice = newRowUnitPrice;
+                    newRow._subtractedItemTotal = newRowItemTotal;
                 }
 
                 const insertPosition = selectedRow + duplicateCount + 1;
@@ -369,7 +381,7 @@
                 }
                 
                 if (hasCustomValues) {
-                    messageText += ` Original row's ItemTotal reduced by ${newRowItemTotal.toFixed(2)}.`;
+                    messageText += ` Original row updated: Qty=${updatedOriginalRow.Quantity.toFixed(2)}, Price=${updatedOriginalRow.UnitPrice.toFixed(2)}, Total=${updatedOriginalRow.ItemTotal.toFixed(2)}`;
                 }
                 
                 setMessage({ type: 'success', text: messageText });
@@ -392,6 +404,7 @@
                     delete newRow._isDuplicate;
                     delete newRow._subtractedItemTotal;
                     delete newRow._subtractedQuantity;
+                    delete newRow._subtractedUnitPrice;
                     
                     const dateColumns = ['InvoiceDate', 'PO_Date', 'DateOfExport'];
                     dateColumns.forEach(col => {
@@ -448,7 +461,9 @@
 
                 const newData = [...invoiceData];
                 
-                if (rowToDelete._subtractedItemTotal !== undefined) {
+                // Restore original row values if this duplicate had custom values
+                if (rowToDelete._subtractedQuantity !== undefined) {
+                    // Find the original row by searching backwards for the first non-duplicate
                     let originalRowIndex = -1;
                     for (let i = index - 1; i >= 0; i--) {
                         if (!newData[i]._isDuplicate) {
@@ -459,23 +474,33 @@
                     
                     if (originalRowIndex !== -1) {
                         newData[originalRowIndex] = { ...newData[originalRowIndex] };
-                        newData[originalRowIndex].ItemTotal = (newData[originalRowIndex].ItemTotal || 0) + rowToDelete._subtractedItemTotal;
                         
-                        if (rowToDelete._subtractedQuantity !== undefined) {
-                            newData[originalRowIndex].Quantity = (newData[originalRowIndex].Quantity || 0) + rowToDelete._subtractedQuantity;
+                        // Restore the values
+                        const restoredQuantity = (newData[originalRowIndex].Quantity || 0) + rowToDelete._subtractedQuantity;
+                        const restoredItemTotal = (newData[originalRowIndex].ItemTotal || 0) + rowToDelete._subtractedItemTotal;
+                        
+                        newData[originalRowIndex].Quantity = restoredQuantity;
+                        newData[originalRowIndex].ItemTotal = restoredItemTotal;
+                        
+                        // Recalculate unit price
+                        if (restoredQuantity > 0) {
+                            newData[originalRowIndex].UnitPrice = restoredItemTotal / restoredQuantity;
                         }
                     }
                 }
                 
+                // Remove the duplicate row
                 const finalData = newData.filter((_, i) => i !== index);
                 setInvoiceData(finalData);
                 
+                // Adjust selected row if necessary
                 if (selectedRow === index) {
                     setSelectedRow(null);
                 } else if (selectedRow !== null && index < selectedRow) {
                     setSelectedRow(selectedRow - 1);
                 }
                 
+                // Adjust duplicate count if we deleted a duplicate from the currently selected row
                 if (selectedRow !== null && index > selectedRow && duplicateCount > 0) {
                     setDuplicateCount(duplicateCount - 1);
                 }

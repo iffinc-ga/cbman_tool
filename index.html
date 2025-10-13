@@ -139,6 +139,18 @@
                 loadCustomerDb();
             }, [selectedCustomer]);
 
+            // Auto-calculate unit price when quantity and itemTotal change in override fields
+            useEffect(() => {
+                if (quantity !== '' && itemTotal !== '' && unitPrice === '') {
+                    const qty = parseFloat(quantity);
+                    const total = parseFloat(itemTotal);
+                    if (qty > 0 && !isNaN(qty) && !isNaN(total)) {
+                        const calculatedUnitPrice = total / qty;
+                        setUnitPrice(calculatedUnitPrice.toFixed(2));
+                    }
+                }
+            }, [quantity, itemTotal]);
+
             const loadCustomerDb = async () => {
                 setDbLoading(true);
                 setDbLoaded(false);
@@ -318,6 +330,12 @@
                 if (itemTotal !== '') {
                     newRowItemTotal = parseFloat(itemTotal);
                     newRow.ItemTotal = newRowItemTotal;
+                }
+                
+                // Auto-calculate unit price if quantity and itemTotal provided but not unitPrice
+                if (quantity !== '' && itemTotal !== '' && unitPrice === '') {
+                    newRowUnitPrice = newRowItemTotal / newRowQuantity;
+                    newRow.UnitPrice = newRowUnitPrice;
                 } else if (quantity !== '' || unitPrice !== '') {
                     // Recalculate ItemTotal based on provided values
                     newRowItemTotal = newRowQuantity * newRowUnitPrice;
@@ -515,10 +533,21 @@
                 if (!isNaN(parsedValue) && parsedValue >= 0) {
                     newData[index][field] = parsedValue;
                     
-                    if (field === 'Quantity' || field === 'UnitPrice') {
-                        const qty = newData[index].Quantity || 0;
+                    // Auto-calculate based on which field was changed
+                    if (field === 'Quantity') {
+                        const qty = parsedValue;
                         const price = newData[index].UnitPrice || 0;
                         newData[index].ItemTotal = qty * price;
+                    } else if (field === 'UnitPrice') {
+                        const qty = newData[index].Quantity || 0;
+                        const price = parsedValue;
+                        newData[index].ItemTotal = qty * price;
+                    } else if (field === 'ItemTotal') {
+                        const qty = newData[index].Quantity || 0;
+                        const total = parsedValue;
+                        if (qty > 0) {
+                            newData[index].UnitPrice = total / qty;
+                        }
                     }
                     
                     setInvoiceData(newData);

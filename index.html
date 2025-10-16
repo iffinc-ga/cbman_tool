@@ -119,18 +119,23 @@
             const tariffStr = String(tariff || '').trim();
             if (!tariffStr) return false;
             
-            // Check if it starts with a number from 1-97
+            // Extract first two characters
             const firstTwo = tariffStr.substring(0, 2);
-            const firstOne = tariffStr.substring(0, 1);
+            const firstChar = tariffStr.substring(0, 1);
             
-            // Check two-digit numbers (10-97)
+            // If tariff starts with 98 or 99, it's NOT a base tariff
             const twoDigit = parseInt(firstTwo);
-            if (!isNaN(twoDigit) && twoDigit >= 10 && twoDigit <= 97) {
-                return true;
+            if (!isNaN(twoDigit)) {
+                if (twoDigit === 98 || twoDigit === 99) {
+                    return false;
+                }
+                if (twoDigit >= 10 && twoDigit <= 97) {
+                    return true;
+                }
             }
             
-            // Check single digit (1-9)
-            const oneDigit = parseInt(firstOne);
+            // Check single digit (1-9) - only if it's truly a single digit start
+            const oneDigit = parseInt(firstChar);
             if (!isNaN(oneDigit) && oneDigit >= 1 && oneDigit <= 9) {
                 return true;
             }

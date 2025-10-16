@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Multi-Customer Invoice Tool</title>
+  <title>Multi-Customer Invoice Tool (Debug Enabled)</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,342 +16,184 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-/* ---------------- ICONS ---------------- */
-const Upload = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-  </svg>
-);
-const Copy = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-  </svg>
-);
-const Download = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-  </svg>
-);
-const Trash = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4
-             a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-  </svg>
-);
-const AlertCircle = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-  </svg>
-);
-const CheckCircle = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-  </svg>
-);
+/* ---------------- Icons ---------------- */
+const Upload = ({ className }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>);
+const Copy = ({ className }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>);
+const Download = ({ className }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>);
+const AlertCircle = ({ className }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>);
+const CheckCircle = ({ className }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>);
 
-/* ---------------- CUSTOMER CONFIG ---------------- */
+/* ---------------- Customer Config ---------------- */
 const CUSTOMERS = {
   grass: {
-    name: 'Grass',
-    color: 'green',
-    dbFileName: 'updated_grass_db.xlsx',
-    description: 'Grass customer processing with aluminum/steel duplication',
-    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
+    name: 'Grass', color: 'green', dbFileName: 'updated_grass_db.xlsx',
+    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1','TARIFF NUM_2','TARIFF NUM_3','TARIFF NUM_4'],
     partNumColumn: 'PRIMARY PART NUM'
   },
   vieler: {
-    name: 'Vieler',
-    color: 'blue',
-    dbFileName: 'vieler_db.xlsx',
-    description: 'Vieler customer processing',
-    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
-    partNumColumn: 'PRIMARY PART NUM'
-  },
-  cb: {
-    name: 'CB Manufacturing',
-    color: 'purple',
-    dbFileName: 'updated_cbman_db.xlsx',
-    description: 'CB Manufacturing customer processing',
-    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4', 'TARIFF NUM_5'],
-    partNumColumn: 'PRIMARY PART NUM'
-  },
-  manki: {
-    name: 'Manki',
-    color: 'orange',
-    dbFileName: 'updated_manki_db.xlsx',
-    description: 'Manki customer processing',
-    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2','TARIFF NUM_3','TARIFF NUM_4', 'TARIFF NUM_5'],
-    partNumColumn: 'PRIMARY PART NUM'
-  },
-  eisenmann: {
-    name: 'Eisenmann',
-    color: 'indigo',
-    dbFileName: 'updated_eisenmann_db.xlsx',
-    description: 'Eisenmann customer processing',
-    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
+    name: 'Vieler', color: 'blue', dbFileName: 'vieler_db.xlsx',
+    tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1','TARIFF NUM_2','TARIFF NUM_3','TARIFF NUM_4'],
     partNumColumn: 'PRIMARY PART NUM'
   }
 };
 
-/* ---------------- UTILITIES ---------------- */
+/* ---------------- Utility ---------------- */
 const normalizeTariff = (t) => {
-  if (t === undefined || t === null) return '';
-  const s = String(t);
-  const digitsOnly = s.replace(/\D/g, '');
-  return digitsOnly.replace(/^0+/, '') || digitsOnly;
+  if (!t) return '';
+  const digits = String(t).replace(/\D/g, '');
+  return digits.replace(/^0+/, '') || digits;
 };
 
-/* ---------------- MAIN COMPONENT ---------------- */
+/* ---------------- Component ---------------- */
 function MultiCustomerTool() {
   const [selectedCustomer, setSelectedCustomer] = useState('grass');
   const [invoiceData, setInvoiceData] = useState([]);
-  const [customerDbData, setCustomerDbData] = useState([]);
-  const [tariffMappings, setTariffMappings] = useState([]);
+  const [dbData, setDbData] = useState([]);
+  const [tariffMap, setTariffMap] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [message, setMessage] = useState(null);
-  const [fileName, setFileName] = useState('');
-  const [dbLoaded, setDbLoaded] = useState(false);
-  const [dbLoading, setDbLoading] = useState(false);
-  const fileInputRef = useRef(null);
-  const currentCustomer = CUSTOMERS[selectedCustomer];
+  const [msg, setMsg] = useState(null);
+  const fileRef = useRef();
+  const customer = CUSTOMERS[selectedCustomer];
 
-  useEffect(() => { loadCustomerDb(); }, [selectedCustomer]);
+  useEffect(() => { loadDb(); }, [selectedCustomer]);
 
-  const loadCustomerDb = async () => {
-    setDbLoading(true);
-    setDbLoaded(false);
-    setInvoiceData([]);
-    setCustomerDbData([]);
-    setTariffMappings([]);
-    setMessage(null);
+  const loadDb = async () => {
+    setMsg({ type: 'info', text: `Loading ${customer.name} DB...` });
     try {
-      const response = await fetch(currentCustomer.dbFileName);
-      if (!response.ok) throw new Error(`Database file not found: ${currentCustomer.dbFileName}`);
-      const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const mainSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const mainData = XLSX.utils.sheet_to_json(mainSheet, { defval: "" });
-      setCustomerDbData(mainData);
-      if (workbook.SheetNames.includes('Sheet1')) {
-        const sheet1 = workbook.Sheets['Sheet1'];
-        const mappings = XLSX.utils.sheet_to_json(sheet1, { header: 1, defval: "" });
-        setTariffMappings(mappings.slice(1));
+      const res = await fetch(customer.dbFileName);
+      if (!res.ok) throw new Error('File not found');
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const main = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      setDbData(main);
+      if (wb.SheetNames.includes('Sheet1')) {
+        const sheet1 = XLSX.utils.sheet_to_json(wb.Sheets['Sheet1'], { header: 1, defval: '' });
+        setTariffMap(sheet1.slice(1));
       }
-      setDbLoaded(true);
-      setMessage({ type: 'success', text: `${currentCustomer.name} DB loaded (${mainData.length} rows)`});
-    } catch (err) {
-      setMessage({ type: 'error', text: `Error loading DB: ${err.message}` });
-    } finally {
-      setDbLoading(false);
+      setMsg({ type: 'success', text: `${customer.name} DB loaded (${main.length} rows)` });
+    } catch (e) {
+      setMsg({ type: 'error', text: e.message });
     }
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-        setInvoiceData(jsonData);
-        setSelectedRow(null);
-        setMessage({ type: 'success', text: `Loaded ${jsonData.length} rows` });
-      } catch (error) {
-        setMessage({ type: 'error', text: 'Error reading file: ' + error.message });
-      }
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      setInvoiceData(XLSX.utils.sheet_to_json(ws, { defval: '' }));
+      setMsg({ type: 'success', text: `Loaded ${f.name}` });
     };
-    reader.readAsArrayBuffer(file);
+    r.readAsArrayBuffer(f);
   };
 
-  /* ----------- FIXED LOGIC HERE ----------- */
-  const findTariffValue = (partNumber, materialType, mode = 'content') => {
-    const normalizedPartNumber = String(partNumber || '').trim();
-    const cfg = currentCustomer;
+  // --- Main find logic ---
+  const findTariffValue = (part, material, mode='content') => {
+    const record = dbData.find(r => String(r[customer.partNumColumn]||'').trim()===String(part||'').trim());
+    if (!record) return { value: material==='aluminum'?'ALL ALUM GENERIC':'ALL STEEL GENERIC', note:'Part not found' };
 
-    const part = customerDbData.find(row => {
-      const dbPartNum = String(row[cfg.partNumColumn] || '').trim();
-      return dbPartNum === normalizedPartNumber;
-    });
-
-    if (!part) {
-      const genericValue = materialType === 'aluminum' ? 'ALL ALUM GENERIC' : 'ALL STEEL GENERIC';
-      return { found: true, value: genericValue, partNotFound: true };
+    const tariffs = customer.tariffColumns.map(c=>String(record[c]||'').trim()).filter(Boolean);
+    const normalized = tariffs.map(normalizeTariff);
+    let matchRow=null, matchTariff=null;
+    for (const t of normalized){
+      const row = tariffMap.find(r=>normalizeTariff(r[0])===t);
+      if (row){matchRow=row; matchTariff=t; break;}
     }
 
-    const tariffCandidates = cfg.tariffColumns
-      .map(col => String(part[col] || '').trim())
-      .filter(t => t && t !== '0');
-
-    if (tariffCandidates.length === 0) {
-      const genericValue = materialType === 'aluminum' ? 'ALL ALUM GENERIC' : 'ALL STEEL GENERIC';
-      return { found: true, value: genericValue, noTariff: true };
+    if (!matchRow){
+      return { value: material==='aluminum'?'ALL ALUM GENERIC':'ALL STEEL GENERIC', tariffs, normalized, note:'No match found' };
     }
 
-    const normalizedCandidates = tariffCandidates.map(t => normalizeTariff(t));
-
-    let matchedTariff = null;
-    for (const candidate of normalizedCandidates) {
-      const mapping = tariffMappings.find(row => normalizeTariff(row[0]) === candidate);
-      if (mapping) {
-        matchedTariff = mapping;
-        break;
-      }
-    }
-
-    if (matchedTariff) {
-      const allColumn = materialType === 'aluminum' ? 3 : 4;
-      const contentColumn = materialType === 'aluminum' ? 1 : 2;
-      const targetColumn = mode === 'all' ? allColumn : contentColumn;
-      const mappedValue = matchedTariff[targetColumn];
-      if (mappedValue && mappedValue.trim() !== '') {
-        return { found: true, value: mappedValue.trim(), tariff: matchedTariff[0] };
-      }
-    }
-
-    const genericValue =
-      mode === 'all'
-        ? materialType === 'aluminum'
-          ? 'ALL ALUM GENERIC'
-          : 'ALL STEEL GENERIC'
-        : materialType === 'aluminum'
-          ? 'ALUM EXCL GENERIC'
-          : 'STEEL EXCL GENERIC';
-
-    return { found: true, value: genericValue, noMapping: true };
-  };
-  /* ---------------------------------------- */
-
-  const duplicateRow = (materialType, mode = 'content') => {
-    if (selectedRow === null) {
-      setMessage({ type: 'error', text: 'Please select a row first' });
-      return;
-    }
-
-    const rowToDuplicate = invoiceData[selectedRow];
-    const partNumber = rowToDuplicate.BuyerPartNumber;
-    const tariffResult = findTariffValue(partNumber, materialType, mode);
-
-    if (mode === 'all') {
-      const updatedRow = { ...rowToDuplicate };
-      updatedRow.BuyerPartNumber = tariffResult.value;
-      updatedRow.SupplierPartNumber = tariffResult.value;
-      const newData = [...invoiceData];
-      newData[selectedRow] = updatedRow;
-      setInvoiceData(newData);
-      const label = materialType === 'aluminum' ? 'All Aluminum' : 'All Steel';
-      setMessage({ type: 'success', text: `Replaced with ${label}: ${tariffResult.value}` });
-      return;
-    }
-
-    const newRow = { ...rowToDuplicate };
-    newRow.BuyerPartNumber = tariffResult.value;
-    newRow.SupplierPartNumber = tariffResult.value;
-    newRow._isDuplicate = true;
-
-    const newData = [
-      ...invoiceData.slice(0, selectedRow + 1),
-      newRow,
-      ...invoiceData.slice(selectedRow + 1)
-    ];
-    setInvoiceData(newData);
-    const label = materialType === 'aluminum' ? 'Aluminum Content' : 'Steel Content';
-    setMessage({ type: 'success', text: `Duplicated for ${label}: ${tariffResult.value}` });
+    const col = mode==='all' ? (material==='aluminum'?3:4) : (material==='aluminum'?1:2);
+    const val = matchRow[col] || (material==='aluminum'?'ALL ALUM GENERIC':'ALL STEEL GENERIC');
+    return { value: val.trim(), tariffs, normalized, matchTariff, note:'Matched' };
   };
 
-  const downloadFile = () => {
-    if (invoiceData.length === 0) {
-      setMessage({ type: 'error', text: 'No data to download' });
-      return;
-    }
-    const worksheet = XLSX.utils.json_to_sheet(invoiceData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    const newFileName = (fileName || 'output.xlsx').replace('.xlsx', `_${selectedCustomer}_updated.xlsx`);
-    XLSX.writeFile(workbook, newFileName);
-    setMessage({ type: 'success', text: `Downloaded as ${newFileName}` });
+  // --- Debug button ---
+  const debugTariff = () => {
+    if (selectedRow===null){ alert('Select a row first.'); return; }
+    const row = invoiceData[selectedRow];
+    const part = row.BuyerPartNumber;
+    const steel = findTariffValue(part,'steel','all');
+    const alum = findTariffValue(part,'aluminum','all');
+    const report = `
+Part: ${part}
+Tariffs found in DB: ${steel.tariffs ? steel.tariffs.join(', ') : 'N/A'}
+Normalized: ${steel.normalized ? steel.normalized.join(', ') : 'N/A'}
+
+Steel result: ${steel.value}
+Note: ${steel.note}
+Matched tariff: ${steel.matchTariff || 'None'}
+
+Aluminum result: ${alum.value}
+Note: ${alum.note}
+Matched tariff: ${alum.matchTariff || 'None'}
+    `;
+    console.log(report);
+    alert(report);
+    setMsg({ type:'info', text:`Debug info shown for ${part}. Check console for details.` });
+  };
+
+  const duplicateRow = (mat, mode='all')=>{
+    if(selectedRow===null){setMsg({type:'error',text:'Select a row'});return;}
+    const row = invoiceData[selectedRow];
+    const res = findTariffValue(row.BuyerPartNumber,mat,mode);
+    const newRow = {...row, BuyerPartNumber:res.value, SupplierPartNumber:res.value};
+    const data=[...invoiceData];
+    data[selectedRow]=newRow;
+    setInvoiceData(data);
+    setMsg({type:'success',text:`Replaced with ${res.value}`});
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-4">
-        <h1 className="text-xl font-bold mb-3">Multi-Customer Invoice Tool</h1>
-
-        <div className="flex gap-2 mb-3">
-          {Object.entries(CUSTOMERS).map(([key, c]) => (
-            <button key={key} onClick={() => setSelectedCustomer(key)} disabled={dbLoading}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold ${selectedCustomer === key ? `bg-${c.color}-600 text-white` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        {message && (
-          <div className={`mb-3 p-3 rounded-lg border ${
-            message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-            message.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-            'bg-blue-50 border-blue-200 text-blue-800'
-          }`}>
-            {message.text}
-          </div>
-        )}
-
-        <div className="flex gap-2 mb-3">
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls" className="hidden"/>
-          <button onClick={()=>fileInputRef.current?.click()} className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2"><Upload className="w-4 h-4"/> Upload Invoice</button>
-          <button onClick={()=>duplicateRow('aluminum','all')} disabled={selectedRow===null} className="px-4 py-2 bg-sky-600 text-white rounded-lg flex items-center gap-2"><Copy className="w-4 h-4"/> All Aluminum</button>
-          <button onClick={()=>duplicateRow('steel','all')} disabled={selectedRow===null} className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2"><Copy className="w-4 h-4"/> All Steel</button>
-          <button onClick={()=>duplicateRow('aluminum','content')} disabled={selectedRow===null} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2"><Copy className="w-4 h-4"/> Aluminum Content</button>
-          <button onClick={()=>duplicateRow('steel','content')} disabled={selectedRow===null} className="px-4 py-2 bg-slate-600 text-white rounded-lg flex items-center gap-2"><Copy className="w-4 h-4"/> Steel Content</button>
-          <button onClick={downloadFile} disabled={!invoiceData.length} className="px-4 py-2 bg-purple-600 text-white rounded-lg flex items-center gap-2"><Download className="w-4 h-4"/> Download</button>
-        </div>
-
-        {invoiceData.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-50 sticky top-0">
-              <tr>
-                <th className="px-3 py-2 border">#</th>
-                <th className="px-3 py-2 border">Invoice #</th>
-                <th className="px-3 py-2 border">Supplier Part #</th>
-                <th className="px-3 py-2 border">Description</th>
-                <th className="px-3 py-2 border">Quantity</th>
-                <th className="px-3 py-2 border">Unit Price</th>
-                <th className="px-3 py-2 border">Item Total</th>
-              </tr>
-              </thead>
-              <tbody>
-              {invoiceData.map((row, i) => (
-                <tr key={i} onClick={() => setSelectedRow(i)} className={`${selectedRow===i?'bg-green-50':''} cursor-pointer`}>
-                  <td className="px-3 py-2 border">{i+1}</td>
-                  <td className="px-3 py-2 border">{row.InvoiceNumber}</td>
-                  <td className="px-3 py-2 border">{row.SupplierPartNumber}</td>
-                  <td className="px-3 py-2 border">{row.Description}</td>
-                  <td className="px-3 py-2 border text-right">{row.Quantity}</td>
-                  <td className="px-3 py-2 border text-right">{row.UnitPrice}</td>
-                  <td className="px-3 py-2 border text-right">{row.ItemTotal}</td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+    <div className="p-4 max-w-6xl mx-auto">
+      <h1 className="text-xl font-bold mb-3">Multi-Customer Invoice Tool (Debug Enabled)</h1>
+      <div className="flex gap-2 mb-3">
+        {Object.entries(CUSTOMERS).map(([k,c])=>
+          <button key={k} onClick={()=>setSelectedCustomer(k)}
+            className={`px-3 py-2 rounded ${selectedCustomer===k?`bg-${c.color}-600 text-white`:'bg-gray-100'}`}>{c.name}</button>)}
       </div>
+
+      {msg && <div className={`mb-3 p-2 rounded ${msg.type==='success'?'bg-green-50':msg.type==='error'?'bg-red-50':'bg-blue-50'}`}>{msg.text}</div>}
+
+      <div className="flex gap-2 mb-3">
+        <input type="file" ref={fileRef} onChange={handleFile} accept=".xlsx" className="hidden"/>
+        <button onClick={()=>fileRef.current?.click()} className="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-1"><Upload className="w-4 h-4"/> Upload</button>
+        <button onClick={()=>duplicateRow('steel','all')} disabled={selectedRow===null} className="px-3 py-2 bg-gray-700 text-white rounded flex items-center gap-1"><Copy className="w-4 h-4"/> All Steel</button>
+        <button onClick={()=>duplicateRow('aluminum','all')} disabled={selectedRow===null} className="px-3 py-2 bg-sky-600 text-white rounded flex items-center gap-1"><Copy className="w-4 h-4"/> All Aluminum</button>
+        <button onClick={debugTariff} disabled={selectedRow===null} className="px-3 py-2 bg-yellow-500 text-white rounded flex items-center gap-1">🧩 Debug Tariff Match</button>
+      </div>
+
+      {invoiceData.length>0 && (
+        <table className="w-full border text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="border px-2 py-1">#</th>
+              <th className="border px-2 py-1">Invoice #</th>
+              <th className="border px-2 py-1">Supplier Part #</th>
+              <th className="border px-2 py-1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoiceData.map((r,i)=>(
+              <tr key={i} onClick={()=>setSelectedRow(i)} className={`${selectedRow===i?'bg-green-50':'cursor-pointer hover:bg-gray-50'}`}>
+                <td className="border px-2">{i+1}</td>
+                <td className="border px-2">{r.InvoiceNumber}</td>
+                <td className="border px-2">{r.SupplierPartNumber}</td>
+                <td className="border px-2">{r.Description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<MultiCustomerTool />);
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<MultiCustomerTool/>);
 </script>
 </body>
 </html>

@@ -1,1080 +1,700 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Customer Invoice Tool</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MANKI Parser – Stable + Robust Parsing</title>
+
+  <!-- pdf.js (stable) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Configure worker for GitHub Pages / static hosting
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  </script>
+
+  <!-- SheetJS for export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --indigo:#667eea; --purple:#764ba2; --rose:#ef4444; --emerald:#10b981; --slate:#64748b;
+      --bg:#f5f7fa; --card:#ffffff; --line:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;
+         background:var(--bg); color:#0f172a}
+    .container{max-width:1600px; margin:0 auto; background:var(--card); border-radius:12px;
+               box-shadow:0 8px 28px rgba(0,0,0,.08); overflow:hidden}
+    .header{
+      position:sticky; top:0; z-index:50; color:#fff; padding:24px 28px;
+      background:linear-gradient(135deg,var(--indigo) 0%,var(--purple) 100%);
+    }
+    .header h1{margin:0 0 6px; font-size:20px}
+    .sub{opacity:.95; font-size:13px}
+
+    .upload{padding:28px}
+    .drop{border:2px dashed #cbd5e1; border-radius:12px; padding:26px; text-align:center;
+          cursor:pointer; transition:.2s; background:#f8fafc}
+    .drop:hover{border-color:var(--indigo); background:#eef2ff}
+    .drop.dragover{background:#e0e7ff; border-color:var(--indigo)}
+    #fileInput{display:none}
+
+    .controls{position:sticky; top:84px; z-index:40; background:#fff;
+              border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+              padding:12px 16px; display:flex; gap:10px; align-items:center}
+    .select{padding:10px; border:1px solid #cbd5e1; border-radius:8px; min-width:380px}
+    .btn{padding:10px 14px; border:0; border-radius:8px; font-weight:600; cursor:pointer}
+    .btn-indigo{background:var(--indigo); color:#fff}
+    .btn-indigo:hover{filter:brightness(.95)}
+    .btn-success{background:var(--emerald); color:#fff}
+    .btn-danger{background:var(--rose); color:#fff}
+    .btn-warning{background:#f59e0b; color:#fff}
+    .btn-ghost{background:#eef2ff; color:#1f2937}
+
+    .stats{position:sticky; top:140px; z-index:30; background:#fffbeb; border-bottom:1px solid #fde68a;
+           display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:10px 16px}
+    .stat{padding:10px 12px; background:#fff; border:1px solid #fde68a; border-radius:10px}
+    .stat-label{font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.03em}
+    .stat-value{font-weight:700; font-variant-numeric:tabular-nums}
+    .stat-value.error{color:var(--rose)}
+    .stat-value.ok{color:var(--emerald)}
+
+    .layout{display:grid; grid-template-columns:2fr 1fr; gap:16px; padding:16px}
+    .card{background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+    .table-wrap{height:calc(100vh - 320px); overflow:auto}
+    table{width:100%; border-collapse:separate; border-spacing:0}
+    thead th{position:sticky; top:196px; z-index:20; /* sticky table header */
+             background:#f8fafc; border-bottom:1px solid var(--line);
+             text-align:left; font-size:12px; padding:10px; text-transform:uppercase}
+    tbody td{border-bottom:1px solid var(--line); padding:8px 10px; font-size:14px; vertical-align:top}
+    tbody tr:hover{background:#f9fafb}
+    td input[type="text"], td input[type="number"]{
+      width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;
+    }
+    td input[readonly]{background:#f8fafc}
+    .calc-cell{font-variant-numeric:tabular-nums}
+    .calc-mismatch{background:#fff1f2}
+    .alert{display:none; margin:12px 16px 0; padding:10px 12px; border-radius:10px; border:1px solid #fecaca; background:#fff1f2; color:#991b1b; font-size:13px}
+
+    .side{padding:16px; height:calc(100vh - 280px); overflow:auto}
+    .side h3{margin:0 0 10px; font-size:14px; color:#334155}
+    .note{background:#f1f5f9; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:8px}
+
+    .loading{display:none; padding:28px; text-align:center}
+    .spinner{border:4px solid #e5e7eb; border-top:4px solid var(--indigo); width:50px; height:50px; border-radius:50%;
+             animation:spin 1s linear infinite; margin:0 auto 10px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:0 16px 12px}
+    .meta-grid input{padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px}
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <div class="container">
+    <div class="header">
+      <h1>📋 MANKI Parser</h1>
+      <div class="sub">Upload a PDF, pick an invoice, review/fix lines, see notes, and export.</div>
+    </div>
 
-    <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
+    <!-- Upload -->
+    <div class="upload" id="uploadSection">
+      <div class="drop" id="uploadBox">
+        <strong>Click to choose PDF</strong> or drop it here
+        <input id="fileInput" type="file" accept="application/pdf" />
+      </div>
+    </div>
 
-        // Lucide Icons as inline SVG components
-        const Upload = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-        );
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div>Extracting text from PDF…</div>
+    </div>
 
-        const Copy = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-        );
+    <!-- Controls -->
+    <div class="controls" id="controls" style="display:none">
+      <select id="invoiceSelect" class="select">
+        <option value="">Select an invoice…</option>
+      </select>
+      <button class="btn btn-indigo" id="exportBtn" title="Export visible invoice (or all, if none selected)">Export to Excel</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" id="showDebugBtn">Debug</button>
+    </div>
 
-        const Download = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-        );
+    <!-- Stats -->
+    <div class="stats" id="stats" style="display:none">
+      <div class="stat"><div class="stat-label">Invoice #</div><div class="stat-value" id="statInvoice">–</div></div>
+      <div class="stat"><div class="stat-label">Invoice Total</div><div class="stat-value" id="statTotal">$0.00</div></div>
+      <div class="stat"><div class="stat-label">Line Items Sum</div><div class="stat-value" id="statSum">$0.00</div></div>
+      <div class="stat"><div class="stat-label">Difference</div><div class="stat-value" id="statDiff">$0.00</div></div>
+    </div>
 
-        const Trash = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-        );
+    <!-- Missing positions alert -->
+    <div id="missingItemsAlert" class="alert">
+      <span id="missingItemsText"></span>
+    </div>
 
-        const AlertCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
+    <!-- Editable invoice meta -->
+    <div class="meta-grid" id="metaGrid" style="display:none">
+      <input id="invoiceDateInput" type="text" placeholder="Invoice Date (auto)" />
+      <input id="supplierInput" type="text" placeholder="Supplier (auto)" />
+      <input id="invoiceTotalInput" type="text" placeholder="Invoice Total (auto)" />
+    </div>
 
-        const CheckCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
+    <div class="layout">
+      <!-- Table -->
+      <div class="card">
+        <div class="table-wrap" id="tableContainer" style="display:none">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:70px">Pos</th>
+                <th style="width:180px">Part Number</th>
+                <th style="width:110px">Quantity</th>
+                <th style="width:80px">Unit</th>
+                <th style="width:120px">Unit Price</th>
+                <th style="width:120px">Line Total</th>
+                <th style="width:120px">Calculated</th>
+                <th style="width:120px">Net Weight</th>
+                <th style="width:110px">Country</th>
+                <th>Description</th>
+                <th style="width:160px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
 
-        const Database = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-            </svg>
-        );
+      <!-- Notes -->
+      <div class="card">
+        <div class="side">
+          <h3>Notes for selected invoice</h3>
+          <div id="notesPanel"></div>
+        </div>
+      </div>
+    </div>
 
-        const Loader = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-        );
+    <!-- Debug -->
+    <div id="debug" style="display:none; padding:16px">
+      <div class="card" style="padding:12px">
+        <strong>Debug text (first 1500 chars)</strong>
+        <pre id="debugContent" style="max-height:260px; overflow:auto; background:#fff; padding:12px; border:1px solid #e5e7eb; border-radius:8px"></pre>
+      </div>
+    </div>
+  </div>
 
-        // Customer configurations
-        const CUSTOMERS = {
-            grass: {
-                name: 'Grass',
-                color: 'green',
-                dbFileName: 'updated_grass_db.xlsx',
-                description: 'Grass customer processing with aluminum/steel duplication',
-                tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
-                tariffFilter: (tariff) => !tariff.startsWith('9'),
-                partNumColumn: 'PRIMARY PART NUM',
-                contentKeyword: 'EXCL' // For Content buttons, look for "EXCL" in values
-            },
-            vieler: {
-                name: 'Vieler',
-                color: 'blue',
-                dbFileName: 'vieler_db.xlsx',
-                description: 'Vieler customer processing',
-                tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
-                tariffFilter: (tariff) => !tariff.startsWith('9'),
-                partNumColumn: 'PRIMARY PART NUM',
-                contentKeyword: 'EXCL'
-            },
-            cb: {
-                name: 'CB Manufacturing',
-                color: 'purple',
-                dbFileName: 'updated_cbman_db.xlsx',
-                description: 'CB Manufacturing customer processing',
-                tariffColumns: ['TARIFF NUM', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4', 'TARIFF NUM_5'],
-                tariffFilter: (tariff) => !tariff.startsWith('9'),
-                partNumColumn: 'PRIMARY PART NUM',
-                contentKeyword: 'EXCL'
-            },
-            manki: {
-                name: 'Manki',
-                color: 'orange',
-                dbFileName: 'updated_manki_db.xlsx',
-                description: 'Manki customer processing',
-                tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2','TARIFF NUM_3','TARIFF NUM_4', 'TARIFF NUM_5'],
-                tariffFilter: (tariff) => tariff.startsWith('3'),
-                partNumColumn: 'PRIMARY PART NUM',
-                contentKeyword: null // No keyword required - all mappings are content
-            },
-            eisenmann: {
-                name: 'Eisenmann',
-                color: 'indigo',
-                dbFileName: 'updated_eisenmann_db.xlsx',
-                description: 'Eisenmann customer processing',
-                tariffColumns: ['TARIFF NUM', 'TARIFF NUM_1', 'TARIFF NUM_2', 'TARIFF NUM_3', 'TARIFF NUM_4'],
-                tariffFilter: (tariff) => !tariff.startsWith('9'),
-                partNumColumn: 'PRIMARY PART NUM',
-                contentKeyword: 'EXCL'
-            }
-        };
+  <script>
+    /* -------------------------
+       State
+    ------------------------- */
+    let allData = [];           // flat array of line items (all invoices)
+    let currentInvoice = "";    // selected invoice number
+    const invoiceNotes = {};    // per-invoice notes (filled during parse)
 
-        function MultiCustomerTool() {
-            const fileInputRef = useRef(null);
-            
-            // State management
-            const [selectedCustomer, setSelectedCustomer] = useState('grass');
-            const [invoiceData, setInvoiceData] = useState([]);
-            const [customerDbData, setCustomerDbData] = useState([]);
-            const [tariffMappings, setTariffMappings] = useState([]);
-            const [htsToUomMapping, setHtsToUomMapping] = useState({});
-            const [selectedRow, setSelectedRow] = useState(null);
-            const [message, setMessage] = useState(null);
-            const [fileName, setFileName] = useState('');
-            const [dbLoaded, setDbLoaded] = useState(false);
-            const [dbLoading, setDbLoading] = useState(false);
-            const [quantity, setQuantity] = useState('');
-            const [unitPrice, setUnitPrice] = useState('');
-            const [itemTotal, setItemTotal] = useState('');
-            const [duplicateCount, setDuplicateCount] = useState(0);
-            const [lastSelectedRow, setLastSelectedRow] = useState(null);
-            
-            const currentCustomer = CUSTOMERS[selectedCustomer];
+    /* -------------------------
+       Upload wiring
+    ------------------------- */
+    const uploadBox = document.getElementById('uploadBox');
+    const fileInput = document.getElementById('fileInput');
 
-            // Color utilities based on customer
-            const getColorClasses = (type) => {
-                const colorMap = {
-                    green: { bg: 'bg-green-600', hover: 'hover:bg-green-700', light: 'bg-green-50', border: 'border-green-600', text: 'text-green-600' },
-                    blue: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', light: 'bg-blue-50', border: 'border-blue-600', text: 'text-blue-600' },
-                    purple: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50', border: 'border-purple-600', text: 'text-purple-600' },
-                    orange: { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', light: 'bg-orange-50', border: 'border-orange-600', text: 'text-orange-600' },
-                    indigo: { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', light: 'bg-indigo-50', border: 'border-indigo-600', text: 'text-indigo-600' }
-                };
-                return colorMap[currentCustomer.color][type];
-            };
+    uploadBox.addEventListener('click', () => fileInput.click());
+    uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+    uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+    uploadBox.addEventListener('drop', e => {
+      e.preventDefault(); uploadBox.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
-            // Auto-calculate unit price when quantity and itemTotal change in override fields
-            useEffect(() => {
-                if (quantity !== '' && itemTotal !== '') {
-                    const qty = parseFloat(quantity);
-                    const total = parseFloat(itemTotal);
-                    if (!isNaN(qty) && !isNaN(total) && qty !== 0) {
-                        const calculatedUnitPrice = total / qty;
-                        setUnitPrice(calculatedUnitPrice.toFixed(2));
-                    }
-                }
-            }, [quantity, itemTotal]);
+    /* -------------------------
+       Helpers / UI
+    ------------------------- */
+    function money(n){ const v = Number(String(n).replace(/[, ]/g,'')) || 0; return '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function showAlert(text,type='error'){
+      const el = document.getElementById('missingItemsAlert');
+      el.style.display = 'block';
+      el.style.borderColor = type==='success' ? '#bbf7d0' : '#fecaca';
+      el.style.background = type==='success' ? '#ecfdf5' : '#fff1f2';
+      el.style.color = type==='success' ? '#065f46' : '#991b1b';
+      document.getElementById('missingItemsText').textContent = text;
+      // auto-hide success
+      if(type==='success'){ setTimeout(()=>{ el.style.display='none'; }, 1800); }
+    }
 
-            // Clear messages after 5 seconds
-            useEffect(() => {
-                if (message) {
-                    const timer = setTimeout(() => setMessage(null), 5000);
-                    return () => clearTimeout(timer);
-                }
-            }, [message]);
+    function setNotes(invoice, list){
+      invoiceNotes[invoice] = invoiceNotes[invoice] || [];
+      invoiceNotes[invoice].push(...list);
+    }
 
-            // Load database when customer changes
-            useEffect(() => {
-                loadCustomerDatabase();
-            }, [selectedCustomer]);
+    function renderNotes(){
+      const wrap = document.getElementById('notesPanel');
+      wrap.innerHTML = '';
+      const notes = currentInvoice ? (invoiceNotes[currentInvoice]||[]) : [];
+      if(!notes.length){
+        wrap.innerHTML = '<div class="note">No notes for this invoice.</div>';
+        return;
+      }
+      notes.forEach(n=>{
+        const d = document.createElement('div');
+        d.className = 'note';
+        d.textContent = n;
+        wrap.appendChild(d);
+      });
+    }
 
-            const loadCustomerDatabase = async () => {
-                setDbLoading(true);
-                setDbLoaded(false);
-                setInvoiceData([]);
-                setSelectedRow(null);
-                setMessage(null);
-                setQuantity('');
-                setUnitPrice('');
-                setItemTotal('');
-                setDuplicateCount(0);
-                setLastSelectedRow(null);
-                setFileName('');
-                setCustomerDbData([]);
-                setTariffMappings([]);
-                
-                try {
-                    const response = await fetch(currentCustomer.dbFileName);
-                    if (!response.ok) {
-                        throw new Error(`Database file not found: ${currentCustomer.dbFileName}`);
-                    }
-                    
-                    const arrayBuffer = await response.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer);
-                    
-                    // Load main database (first sheet)
-                    const mainSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const mainData = XLSX.utils.sheet_to_json(mainSheet, { defval: "" });
-                    setCustomerDbData(mainData);
-                    
-                    // Load Sheet1 for tariff mappings if it exists
-                    if (workbook.SheetNames.includes('Sheet1')) {
-                        const sheet1 = workbook.Sheets['Sheet1'];
-                        const mappings = XLSX.utils.sheet_to_json(sheet1, { header: 1, defval: "" });
-                        setTariffMappings(mappings.slice(1)); // Skip header row
-                    }
-                    
-                    // Load HTS-to-UOM mapping for Grass customer only
-                    if (currentCustomer.name === 'Grass' && workbook.SheetNames.includes('hts_codes_with_uom')) {
-                        const uomSheet = workbook.Sheets['hts_codes_with_uom'];
-                        const uomData = XLSX.utils.sheet_to_json(uomSheet, { defval: "" });
-                        
-                        // Create a mapping object: HTS Code -> UOM1
-                        const uomMap = {};
-                        uomData.forEach(row => {
-                            const htsCode = String(row['HTS Code'] || '').trim();
-                            const uom1 = String(row['UOM1'] || '').trim();
-                            if (htsCode && uom1) {
-                                uomMap[htsCode] = uom1;
-                            }
-                        });
-                        setHtsToUomMapping(uomMap);
-                    } else {
-                        setHtsToUomMapping({});
-                    }
-                    
-                    setDbLoaded(true);
-                    setMessage({ 
-                        type: 'success', 
-                        text: `${currentCustomer.name} database loaded successfully (${mainData.length} records)` 
-                    });
-                } catch (error) {
-                    setMessage({ 
-                        type: 'error', 
-                        text: `Error loading ${currentCustomer.name} database: ${error.message}. Make sure ${currentCustomer.dbFileName} is in the same directory.` 
-                    });
-                } finally {
-                    setDbLoading(false);
-                }
-            };
+    /* -------------------------
+       Robust PDF extraction
+    ------------------------- */
+    async function handleFile(file){
+      if(file.type!=='application/pdf'){ showAlert('Please upload a PDF file'); return; }
+      document.getElementById('uploadSection').style.display='none';
+      document.getElementById('loading').style.display='block';
 
-            const handleFileUpload = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+      try{
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
 
-                setFileName(file.name);
-                const reader = new FileReader();
-                
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                        
-                        setInvoiceData(jsonData);
-                        setSelectedRow(null);
-                        setDuplicateCount(0);
-                        setLastSelectedRow(null);
-                        setMessage({ type: 'success', text: `Loaded ${jsonData.length} rows from ${file.name}` });
-                    } catch (error) {
-                        setMessage({ type: 'error', text: 'Error reading file: ' + error.message });
-                    }
-                };
-                
-                reader.readAsArrayBuffer(file);
-            };
-
-            // Function for Content buttons (Aluminum Content / Steel Content)
-            const findTariffValueContent = (partNumber, materialType) => {
-                const normalizedPartNumber = String(partNumber || '').trim();
-                const config = currentCustomer;
-                
-                // Find the part in database
-                const part = customerDbData.find(row => {
-                    const dbPartNum = String(row[config.partNumColumn] || '').trim();
-                    return dbPartNum === normalizedPartNumber;
-                });
-                
-                // If part not found, return generic value
-                if (!part) {
-                    const genericValue = materialType === 'aluminum' ? 'ALUM EXCL GENERIC' : 'STEEL EXCL GENERIC';
-                    return { 
-                        found: true, 
-                        value: genericValue, 
-                        materialType,
-                        partNotFound: true 
-                    };
-                }
-
-                // Look for tariffs that match the customer's filter
-                let tariffNumber = null;
-                
-                for (const col of config.tariffColumns) {
-                    const tariff = String(part[col] || '').trim();
-                    if (tariff && config.tariffFilter(tariff)) {
-                        tariffNumber = tariff;
-                        break;
-                    }
-                }
-
-                // If no valid tariff found, use generic value
-                if (!tariffNumber) {
-                    const genericValue = materialType === 'aluminum' ? 'ALUM EXCL GENERIC' : 'STEEL EXCL GENERIC';
-                    return { 
-                        found: true, 
-                        value: genericValue, 
-                        materialType,
-                        noValidTariff: true 
-                    };
-                }
-
-                // Look for mapping based on customer's content keyword
-                const mapping = tariffMappings.find(row => {
-                    const tariffCol = String(row[0] || '').trim();
-                    
-                    if (!tariffCol || tariffCol !== tariffNumber) {
-                        return false;
-                    }
-                    
-                    // If no content keyword required (like Manki), just match the tariff
-                    if (config.contentKeyword === null) {
-                        return true;
-                    }
-                    
-                    // Otherwise, check for the content keyword (like "EXCL")
-                    const aluminumCol = String(row[1] || '').trim();
-                    const steelCol = String(row[2] || '').trim();
-                    return aluminumCol.includes(config.contentKeyword) || steelCol.includes(config.contentKeyword);
-                });
-
-                // Column 1 = Aluminum, Column 2 = Steel
-                const columnIndex = materialType === 'aluminum' ? 1 : 2;
-                
-                if (mapping && mapping[columnIndex]) {
-                    return { found: true, value: mapping[columnIndex], tariff: tariffNumber, materialType };
-                }
-
-                // Default if no mapping found
-                const defaultValue = materialType === 'aluminum' ? 'ALUM EXCL GENERIC' : 'STEEL EXCL GENERIC';
-                return { found: true, value: defaultValue, tariff: tariffNumber, usingDefault: true, materialType };
-            };
-
-            // Function for ALL buttons (All Aluminum / All Steel)
-            const findTariffValueAll = (partNumber, materialType) => {
-                const normalizedPartNumber = String(partNumber || '').trim();
-                const config = currentCustomer;
-                
-                // Find the part in database
-                const part = customerDbData.find(row => {
-                    const dbPartNum = String(row[config.partNumColumn] || '').trim();
-                    return dbPartNum === normalizedPartNumber;
-                });
-                
-                // If part not found, return generic value
-                if (!part) {
-                    const genericValue = materialType === 'aluminum' ? 'ALL ALUM GENERIC' : 'ALL STEEL GENERIC';
-                    return { 
-                        found: true, 
-                        value: genericValue, 
-                        materialType,
-                        partNotFound: true 
-                    };
-                }
-
-                // Look for base tariffs (1-97)
-                let baseTariff = null;
-                
-                for (const col of config.tariffColumns) {
-                    const tariff = String(part[col] || '').trim();
-                    if (tariff && isBaseTariff(tariff)) {
-                        baseTariff = tariff;
-                        break;
-                    }
-                }
-
-                // If no base tariff found, use generic value
-                if (!baseTariff) {
-                    const genericValue = materialType === 'aluminum' ? 'ALL ALUM GENERIC' : 'ALL STEEL GENERIC';
-                    return { 
-                        found: true, 
-                        value: genericValue, 
-                        materialType,
-                        noBaseTariff: true 
-                    };
-                }
-
-                // Look for mapping that contains "ALL"
-                const mapping = tariffMappings.find(row => {
-                    const tariffCol = String(row[0] || '').trim();
-                    const aluminumCol = String(row[1] || '').trim();
-                    const steelCol = String(row[2] || '').trim();
-                    
-                    // Match tariff AND check that this is an ALL row (not EXCL row)
-                    return tariffCol === baseTariff && 
-                           (aluminumCol.includes('ALL') || steelCol.includes('ALL'));
-                });
-
-                // Column 1 = Aluminum, Column 2 = Steel
-                const columnIndex = materialType === 'aluminum' ? 1 : 2;
-                
-                if (mapping && mapping[columnIndex]) {
-                    return { found: true, value: mapping[columnIndex], tariff: baseTariff, materialType };
-                }
-
-                // Default if no mapping found
-                const defaultValue = materialType === 'aluminum' ? 'ALL ALUM GENERIC' : 'ALL STEEL GENERIC';
-                return { found: true, value: defaultValue, tariff: baseTariff, usingDefault: true, materialType };
-            };
-
-            const duplicateRow = (materialType, mode = 'content') => {
-                if (selectedRow === null) {
-                    setMessage({ type: 'error', text: 'Please select a row to duplicate' });
-                    return;
-                }
-
-                if (lastSelectedRow !== selectedRow) {
-                    setDuplicateCount(0);
-                    setLastSelectedRow(selectedRow);
-                }
-
-                const rowToModify = invoiceData[selectedRow];
-                const partNumber = rowToModify.BuyerPartNumber;
-                
-                // Use the appropriate function based on mode
-                const tariffResult = mode === 'all' 
-                    ? findTariffValueAll(partNumber, materialType)
-                    : findTariffValueContent(partNumber, materialType);
-
-                // Build message based on the result
-                const materialLabel = materialType === 'aluminum' ? 'Aluminum' : 'Steel';
-                const modeLabel = mode === 'all' ? 'ALL' : 'Content';
-                let messageText = '';
-                
-                if (tariffResult.partNotFound) {
-                    messageText = `Part number not found in database - using generic ${modeLabel} ${materialLabel} value`;
-                } else if (mode === 'all' && tariffResult.noBaseTariff) {
-                    messageText = `No base tariff (1-97) found for part - using generic ALL ${materialLabel} value`;
-                } else if (mode === 'content' && tariffResult.noValidTariff) {
-                    messageText = `No valid tariff found for part - using generic ${materialLabel} Content value`;
-                } else if (tariffResult.usingDefault) {
-                    messageText = `Using default ${modeLabel} ${materialLabel} value. Tariff ${tariffResult.tariff} not found in mappings.`;
-                } else {
-                    messageText = `Applied ${modeLabel} ${materialLabel}: ${tariffResult.value} (Tariff: ${tariffResult.tariff})`;
-                }
-
-                // For "ALL" mode (All Aluminum / All Steel), REPLACE the line
-                if (mode === 'all') {
-                    const newData = [...invoiceData];
-                    newData[selectedRow] = {
-                        ...rowToModify,
-                        BuyerPartNumber: tariffResult.value,
-                        SupplierPartNumber: tariffResult.value
-                    };
-                    setInvoiceData(newData);
-                    setMessage({ type: 'success', text: `Line replaced with ${messageText}` });
-                    return;
-                }
-
-                // For "Content" mode (Aluminum Content / Steel Content), DUPLICATE the line
-                const newRow = { ...rowToModify };
-                newRow.BuyerPartNumber = tariffResult.value;
-                newRow.SupplierPartNumber = tariffResult.value;
-                newRow._isDuplicate = true;
-
-                const hasCustomValues = quantity !== '' || unitPrice !== '' || itemTotal !== '';
-                
-                // Calculate new row values
-                let newRowQuantity = rowToModify.Quantity;
-                let newRowUnitPrice = rowToModify.UnitPrice;
-                let newRowItemTotal = rowToModify.ItemTotal;
-
-                if (quantity !== '') {
-                    newRowQuantity = parseFloat(quantity);
-                    newRow.Quantity = newRowQuantity;
-                }
-                if (unitPrice !== '') {
-                    newRowUnitPrice = parseFloat(unitPrice);
-                    newRow.UnitPrice = newRowUnitPrice;
-                }
-                if (itemTotal !== '') {
-                    newRowItemTotal = parseFloat(itemTotal);
-                    newRow.ItemTotal = newRowItemTotal;
-                }
-                
-                // Auto-calculate unit price if quantity and itemTotal provided but not unitPrice
-                if (quantity !== '' && itemTotal !== '' && unitPrice === '') {
-                    newRowUnitPrice = newRowItemTotal / newRowQuantity;
-                    newRow.UnitPrice = newRowUnitPrice;
-                } else if (quantity !== '' || unitPrice !== '') {
-                    // Recalculate ItemTotal based on provided values
-                    newRowItemTotal = newRowQuantity * newRowUnitPrice;
-                    newRow.ItemTotal = newRowItemTotal;
-                }
-
-                // Update original row if custom values were provided
-                let updatedOriginalRow = rowToModify;
-                if (hasCustomValues) {
-                    updatedOriginalRow = { ...rowToModify };
-                    
-                    // Keep original quantity unchanged, only adjust ItemTotal
-                    const remainingItemTotal = (rowToModify.ItemTotal || 0) - newRowItemTotal;
-                    
-                    // Quantity stays the same
-                    updatedOriginalRow.Quantity = rowToModify.Quantity;
-                    updatedOriginalRow.ItemTotal = remainingItemTotal;
-                    
-                    // Recalculate unit price for original row based on remaining total and ORIGINAL quantity
-                    if (updatedOriginalRow.Quantity > 0) {
-                        updatedOriginalRow.UnitPrice = remainingItemTotal / updatedOriginalRow.Quantity;
-                    } else {
-                        updatedOriginalRow.UnitPrice = 0;
-                    }
-                    
-                    // Store the subtracted item total for restoration if duplicate is deleted
-                    updatedOriginalRow._subtractedItemTotal = newRowItemTotal;
-                }
-
-                // Track duplicate group for proper deletion
-                const duplicateGroupId = `${selectedRow}_${Date.now()}`;
-                newRow._duplicateGroupId = duplicateGroupId;
-
-                // Insert the duplicate right after the original
-                const insertPosition = selectedRow + 1 + duplicateCount;
-                
-                // Update the data array
-                const newData = hasCustomValues ? [
-                    ...invoiceData.slice(0, selectedRow),
-                    updatedOriginalRow,
-                    ...invoiceData.slice(selectedRow + 1, insertPosition),
-                    newRow,
-                    ...invoiceData.slice(insertPosition)
-                ] : [
-                    ...invoiceData.slice(0, insertPosition),
-                    newRow,
-                    ...invoiceData.slice(insertPosition)
-                ];
-
-                setInvoiceData(newData);
-                setDuplicateCount(duplicateCount + 1);
-                
-                if (hasCustomValues) {
-                    messageText += ` | Original row updated: Total=${updatedOriginalRow.ItemTotal.toFixed(2)}, Price=${updatedOriginalRow.UnitPrice.toFixed(2)} (Qty unchanged: ${updatedOriginalRow.Quantity})`;
-                }
-                
-                setMessage({ type: 'success', text: `Row duplicated for ${messageText}` });
-                
-                setQuantity('');
-                setUnitPrice('');
-                setItemTotal('');
-            };
-
-            const downloadFile = () => {
-                if (invoiceData.length === 0) {
-                    setMessage({ type: 'error', text: 'No data to download' });
-                    return;
-                }
-
-                const processedData = invoiceData.map(row => {
-                    const newRow = { ...row };
-                    
-                    delete newRow._duplicateGroupId;
-                    delete newRow._isDuplicate;
-                    delete newRow._subtractedItemTotal;
-                    
-                    // Add Unit of Measure lookup for Grass customer
-                    if (selectedCustomer === 'grass' && Object.keys(htsToUomMapping).length > 0) {
-                        // Look for HTS code in various possible column names
-                        const htsCode = String(
-                            row['HTS'] || 
-                            row['HTSCode'] || 
-                            row['HTS Code'] || 
-                            row['HTSNumber'] || 
-                            row['HTS Number'] ||
-                            row['TariffNumber'] ||
-                            row['Tariff Number'] ||
-                            row['TariffNum'] ||
-                            row['Tariff Num'] ||
-                            ''
-                        ).trim();
-                        
-                        // If HTS code found, look up the UOM
-                        if (htsCode) {
-                            const uom = htsToUomMapping[htsCode];
-                            if (uom) {
-                                newRow['Unit of Measure'] = uom;
-                            } else {
-                                // HTS code not found in mapping
-                                newRow['Unit of Measure'] = '';
-                            }
-                        } else {
-                            newRow['Unit of Measure'] = '';
-                        }
-                    }
-                    
-                    const dateColumns = ['InvoiceDate', 'PO_Date', 'DateOfExport'];
-                    dateColumns.forEach(col => {
-                        if (newRow[col]) {
-                            if (typeof newRow[col] === 'number') {
-                                const date = XLSX.SSF.parse_date_code(newRow[col]);
-                                newRow[col] = new Date(date.y, date.m - 1, date.d);
-                            } else if (typeof newRow[col] === 'string') {
-                                const date = new Date(newRow[col]);
-                                if (!isNaN(date.getTime())) {
-                                    newRow[col] = date;
-                                }
-                            }
-                        }
-                    });
-                    
-                    return newRow;
-                });
-
-                const worksheet = XLSX.utils.json_to_sheet(processedData);
-                
-                const range = XLSX.utils.decode_range(worksheet['!ref']);
-                const header = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0];
-                
-                ['InvoiceDate', 'PO_Date', 'DateOfExport'].forEach(dateCol => {
-                    const colIndex = header.indexOf(dateCol);
-                    if (colIndex !== -1) {
-                        const colLetter = XLSX.utils.encode_col(colIndex);
-                        for (let row = 1; row <= range.e.r; row++) {
-                            const cellAddress = `${colLetter}${row + 1}`;
-                            if (worksheet[cellAddress] && worksheet[cellAddress].t !== 's') {
-                                worksheet[cellAddress].z = 'mm/dd/yyyy';
-                            }
-                        }
-                    }
-                });
-                
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-                
-                const newFileName = fileName.replace('.xlsx', `_${selectedCustomer}_updated.xlsx`);
-                XLSX.writeFile(workbook, newFileName);
-                
-                setMessage({ type: 'success', text: `File downloaded as ${newFileName}` });
-            };
-
-            const deleteRow = (index) => {
-                const rowToDelete = invoiceData[index];
-                
-                if (!rowToDelete._isDuplicate) {
-                    setMessage({ type: 'error', text: 'Cannot delete original data rows. Only duplicated rows can be deleted.' });
-                    return;
-                }
-
-                const newData = [...invoiceData];
-                
-                // Find the original row that was modified when this duplicate was created
-                let originalRowIndex = index - 1;
-                while (originalRowIndex >= 0 && newData[originalRowIndex]._isDuplicate) {
-                    originalRowIndex--;
-                }
-
-                // If there was a subtracted item total, restore it to the original row
-                if (originalRowIndex >= 0 && newData[originalRowIndex]._subtractedItemTotal) {
-                    const restoredItemTotal = newData[originalRowIndex].ItemTotal + newData[originalRowIndex]._subtractedItemTotal;
-                    newData[originalRowIndex].ItemTotal = restoredItemTotal;
-                    
-                    // Recalculate unit price based on original quantity
-                    if (newData[originalRowIndex].Quantity > 0) {
-                        newData[originalRowIndex].UnitPrice = restoredItemTotal / newData[originalRowIndex].Quantity;
-                    }
-                    
-                    delete newData[originalRowIndex]._subtractedItemTotal;
-                }
-
-                // Remove the duplicate row
-                newData.splice(index, 1);
-                
-                setInvoiceData(newData);
-                setDuplicateCount(Math.max(0, duplicateCount - 1));
-                setMessage({ type: 'success', text: 'Duplicate row deleted and values restored to original' });
-            };
-
-            const updateRowValue = (index, field, value) => {
-                const newData = [...invoiceData];
-                const parsedValue = parseFloat(value);
-                
-                if (!isNaN(parsedValue)) {
-                    newData[index][field] = parsedValue;
-                    
-                    // Auto-calculate based on what was changed
-                    if (field === 'Quantity' || field === 'UnitPrice') {
-                        const qty = newData[index].Quantity || 0;
-                        const price = newData[index].UnitPrice || 0;
-                        newData[index].ItemTotal = qty * price;
-                    } else if (field === 'ItemTotal') {
-                        const total = newData[index].ItemTotal || 0;
-                        const qty = newData[index].Quantity || 0;
-                        if (qty > 0) {
-                            newData[index].UnitPrice = total / qty;
-                        }
-                    }
-                }
-                
-                setInvoiceData(newData);
-            };
-
-            const isBaseTariff = (tariff) => {
-                const tariffStr = String(tariff).trim();
-                if (!tariffStr) return false;
-                
-                const firstTwoDigits = parseInt(tariffStr.substring(0, 2));
-                return firstTwoDigits >= 1 && firstTwoDigits <= 97;
-            };
-
-            const copyToClipboard = () => {
-                if (invoiceData.length === 0) {
-                    setMessage({ type: 'error', text: 'No data to copy' });
-                    return;
-                }
-
-                const headers = Object.keys(invoiceData[0]).filter(key => !key.startsWith('_'));
-                const rows = invoiceData.map(row => 
-                    headers.map(header => row[header] || '').join('\t')
-                );
-                
-                const tsv = [headers.join('\t'), ...rows].join('\n');
-                
-                navigator.clipboard.writeText(tsv).then(() => {
-                    setMessage({ type: 'success', text: 'Data copied to clipboard (TSV format)' });
-                }).catch(() => {
-                    setMessage({ type: 'error', text: 'Failed to copy to clipboard' });
-                });
-            };
-
-            return (
-                <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-                    {/* Header */}
-                    <div className="max-w-7xl mx-auto mb-6">
-                        <div className="bg-white rounded-2xl shadow-xl p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h1 className="text-3xl font-bold text-gray-800 mb-2">Multi-Customer Invoice Tool</h1>
-                                    <p className="text-gray-600">{currentCustomer.description}</p>
-                                </div>
-                                <div className={`px-6 py-3 ${getColorClasses('bg')} text-white rounded-xl font-semibold text-lg shadow-lg`}>
-                                    {currentCustomer.name}
-                                </div>
-                            </div>
-
-                            {/* Customer Selection */}
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-3">Select Customer</label>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                    {Object.entries(CUSTOMERS).map(([key, customer]) => (
-                                        <button
-                                            key={key}
-                                            onClick={() => setSelectedCustomer(key)}
-                                            className={`px-4 py-3 rounded-lg font-medium transition-all ${
-                                                selectedCustomer === key
-                                                    ? `bg-${customer.color}-600 text-white shadow-lg scale-105`
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {customer.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Message Display */}
-                            {message && (
-                                <div className={`mb-4 p-4 rounded-lg flex items-start ${
-                                    message.type === 'error' 
-                                        ? 'bg-red-50 border border-red-200' 
-                                        : 'bg-green-50 border border-green-200'
-                                }`}>
-                                    {message.type === 'error' ? (
-                                        <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-                                    ) : (
-                                        <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                                    )}
-                                    <span className={message.type === 'error' ? 'text-red-700' : 'text-green-700'}>
-                                        {message.text}
-                                    </span>
-                                </div>
-                            )}
-
-                            {/* Control Panel */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Left: File Upload */}
-                                <div className="bg-gray-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Invoice File</h3>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".xlsx,.xls"
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                    />
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={!dbLoaded}
-                                        className={`w-full px-6 py-3 ${getColorClasses('bg')} ${getColorClasses('hover')} text-white rounded-lg font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    >
-                                        <Upload className="w-5 h-5 mr-2" />
-                                        Upload Invoice
-                                    </button>
-                                    {fileName && (
-                                        <p className="mt-3 text-sm text-gray-600 text-center truncate">
-                                            📄 {fileName}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Right: Duplication Controls */}
-                                <div className="bg-gray-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Row Duplication</h3>
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {/* Content Buttons */}
-                                            <button
-                                                onClick={() => duplicateRow('aluminum', 'content')}
-                                                disabled={selectedRow === null || !dbLoaded}
-                                                className={`px-4 py-2 ${getColorClasses('bg')} ${getColorClasses('hover')} text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm`}
-                                            >
-                                                Aluminum Content
-                                            </button>
-                                            <button
-                                                onClick={() => duplicateRow('steel', 'content')}
-                                                disabled={selectedRow === null || !dbLoaded}
-                                                className={`px-4 py-2 ${getColorClasses('bg')} ${getColorClasses('hover')} text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm`}
-                                            >
-                                                Steel Content
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {/* ALL Buttons */}
-                                            <button
-                                                onClick={() => duplicateRow('aluminum', 'all')}
-                                                disabled={selectedRow === null || !dbLoaded}
-                                                className={`px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm`}
-                                            >
-                                                All Aluminum
-                                            </button>
-                                            <button
-                                                onClick={() => duplicateRow('steel', 'all')}
-                                                disabled={selectedRow === null || !dbLoaded}
-                                                className={`px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm`}
-                                            >
-                                                All Steel
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Override Values */}
-                                    <div className="mt-4 pt-4 border-t border-gray-200">
-                                        <p className="text-xs font-medium text-gray-600 mb-2">Override Values (optional):</p>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
-                                                <input
-                                                    type="number"
-                                                    placeholder="Qty"
-                                                    value={quantity}
-                                                    onChange={(e) => setQuantity(e.target.value)}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Unit Price (auto-calc)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="Price"
-                                                    value={unitPrice}
-                                                    onChange={(e) => setUnitPrice(e.target.value)}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Item Total</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="Total"
-                                                    value={itemTotal}
-                                                    onChange={(e) => setItemTotal(e.target.value)}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-3 mt-6">
-                                <button
-                                    onClick={downloadFile}
-                                    disabled={invoiceData.length === 0}
-                                    className={`flex-1 px-6 py-3 ${getColorClasses('bg')} ${getColorClasses('hover')} text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download
-                                </button>
-                                <button
-                                    onClick={copyToClipboard}
-                                    disabled={invoiceData.length === 0}
-                                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                >
-                                    <Copy className="w-4 h-4 mr-2" />
-                                    Copy to Clipboard
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Main Content Area */}
-                    <div className="max-w-7xl mx-auto">
-                        {/* Status Bar */}
-                        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="flex items-center">
-                                    <Database className={`w-8 h-8 ${getColorClasses('text')} mr-3`} />
-                                    <div>
-                                        <p className="text-sm text-gray-600">Database Status</p>
-                                        <p className="font-semibold text-gray-800">
-                                            {dbLoading ? (
-                                                <span className="flex items-center">
-                                                    <Loader className="w-4 h-4 mr-2 animate-spin" />
-                                                    Loading...
-                                                </span>
-                                            ) : dbLoaded ? (
-                                                <span className="text-green-600">✓ Loaded</span>
-                                            ) : (
-                                                <span className="text-gray-400">Not Loaded</span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center">
-                                    <div className={`w-8 h-8 rounded-full ${getColorClasses('bg')} flex items-center justify-center text-white font-bold mr-3`}>
-                                        {invoiceData.length}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-600">Invoice Rows</p>
-                                        <p className="font-semibold text-gray-800">
-                                            {invoiceData.length > 0 ? `${invoiceData.length} rows loaded` : 'No data'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center">
-                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold mr-3">
-                                        {dbLoading ? '...' : dbLoaded ? customerDbData.length : '-'}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-600">DB Records</p>
-                                        <p className="font-semibold text-gray-800">
-                                            {dbLoading ? '...' : dbLoaded ? customerDbData.length : '-'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Data Table with Sticky Headers */}
-                        {invoiceData.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                                <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                                            <tr>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Line #</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Invoice #</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Supplier Part #</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Description</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Quantity</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Unit Price</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Item Total</th>
-                                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200">
-                                            {invoiceData.map((row, index) => (
-                                                <tr
-                                                    key={index}
-                                                    onClick={() => {
-                                                        setSelectedRow(index);
-                                                        if (lastSelectedRow !== index) {
-                                                            setDuplicateCount(0);
-                                                            setLastSelectedRow(index);
-                                                        }
-                                                    }}
-                                                    className={`transition-colors cursor-pointer ${
-                                                        selectedRow === index
-                                                            ? getColorClasses('light')
-                                                            : row._isDuplicate 
-                                                            ? 'bg-emerald-50 hover:bg-emerald-100'
-                                                            : 'hover:bg-gray-50'
-                                                    }`}
-                                                >
-                                                    <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                                                        {index + 1}
-                                                        {row._isDuplicate && (
-                                                            <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getColorClasses('bg')} text-white`}>
-                                                                DUP
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-sm text-gray-700">{row.InvoiceNumber}</td>
-                                                    <td className="px-3 py-2 text-sm text-gray-900 font-medium">{row.SupplierPartNumber}</td>
-                                                    <td className="px-3 py-2 text-sm text-gray-700 max-w-xs truncate">{row.Description}</td>
-                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="number"
-                                                            value={row.Quantity || ''}
-                                                            onChange={(e) => updateRowValue(index, 'Quantity', e.target.value)}
-                                                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={row.UnitPrice || ''}
-                                                            onChange={(e) => updateRowValue(index, 'UnitPrice', e.target.value)}
-                                                            className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={row.ItemTotal || ''}
-                                                            onChange={(e) => updateRowValue(index, 'ItemTotal', e.target.value)}
-                                                            className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 font-semibold"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                                                        {row._isDuplicate ? (
-                                                            <button
-                                                                onClick={() => deleteRow(index)}
-                                                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-                                                                title="Delete this duplicated row"
-                                                            >
-                                                                <Trash className="w-3 h-3 mr-1" />
-                                                                Delete
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs text-gray-400">Original</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {invoiceData.length === 0 && dbLoaded && !dbLoading && (
-                            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                                <Upload className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-600">Upload an invoice file to get started</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
+        let text = '';
+        for(let i=1;i<=pdf.numPages;i++){
+          const page = await pdf.getPage(i);
+          const tc = await page.getTextContent();
+          // Use spaces but keep page breaks as \n to aid “block” parsing
+          const pageText = tc.items.map(it => it.str).join(' ');
+          text += pageText + '\n';
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<MultiCustomerTool />);
-    </script>
+        // Debug
+        const dbg = document.getElementById('debugContent');
+        dbg.textContent = `Pages: ${pdf.numPages}\nTotal chars: ${text.length}\n\n` + text.slice(0,1500);
+        document.getElementById('debug').style.display='none'; // hidden by default
+        document.getElementById('showDebugBtn').onclick = () => {
+          const d = document.getElementById('debug');
+          d.style.display = d.style.display==='none' ? 'block' : 'none';
+        };
+
+        parseInvoices(text);
+
+        if(allData.length){
+          setupInterface();
+          showAlert(`✅ Parsed ${new Set(allData.map(d=>d.invoice_number)).size} invoice(s), ${allData.length} line(s)`, 'success');
+        }else{
+          document.getElementById('uploadSection').style.display='block';
+          document.getElementById('debug').style.display='block';
+          showAlert('No invoice data found. See debug below.');
+        }
+
+      }catch(err){
+        console.error(err);
+        document.getElementById('uploadSection').style.display='block';
+        showAlert('Error: ' + err.message);
+      }finally{
+        document.getElementById('loading').style.display='none';
+      }
+    }
+
+    /* -------------------------
+       Parsing (improved & tolerant)
+    ------------------------- */
+    function parseInvoices(raw){
+      allData = [];
+      Object.keys(invoiceNotes).forEach(k=>delete invoiceNotes[k]);
+
+      // Normalize repeated spaces
+      let text = raw.replace(/[ \t]+/g,' ');
+
+      // Identify invoice blocks by "Customs Invoice <number>"
+      const invRegex = /Customs\s+Invoice\s+(\d{6,})/gi;
+      const matches = [...text.matchAll(invRegex)];
+      if(!matches.length) return;
+
+      for(let i=0;i<matches.length;i++){
+        const inv = matches[i][1];
+        const start = matches[i].index;
+        const end = (i<matches.length-1) ? matches[i+1].index : text.length;
+        const block = text.slice(start,end);
+
+        // Common metadata
+        const dateMatch = block.match(/from\s+(\d{2}\/\d{2}\/\d{4})/i);
+        const supplierMatch = block.match(/Delivery Address:.*?\n?([A-Za-z0-9 ,.\-()&\/]+)\s*(?:\n|$)/i);
+        const invoiceTotalMatch = block.match(/Total\s+invoice\s+value:\s*([\d,]+\.\d{2})\s*USD/i);
+
+        const invoice_date = dateMatch ? dateMatch[1] : '';
+        const supplier = supplierMatch ? supplierMatch[1].trim() : '';
+        const invoice_total = invoiceTotalMatch ? invoiceTotalMatch[1] : '';
+
+        // Find product “lines”
+        // Pattern looks for: Pos <n> <Product no> ... quantities ... price/unit ... total price USD
+        const lineRegex =
+          /(\d{1,3})\s+([A-Z0-9.\-]+)\s+(\d+(?:\.\d+)?)\s+(?:bucket|barrel|can|can\(s\)|can\(s\)|can\(s\)|can\(s\)|can\(s\)|bucket\(s\)|barrel\(s\)|can\(s\)|can\(s\)|can\(s\)|can\(s\)|barrel\(s\)|bucket\(s\)|can\(s\)|can\(s\)|bucket\(s\)|can\(s\)|can\(s\)|bucket\(s\)|can\(s\)|barrel\(s\)|can\(s\)|bucket\(s\)|can\(s\)|barrel\(s\)|can\(s\)|bucket\(s\)|can\(s\)|bucket\(s\)|can\(s\)|bucket\(s\))?\s*x\s*([\d,.]+)\s+(KG|L|GAL|PT|QT)\s+([\d,.]+)\s+\4\s+([\d,.]+)\s+USD\/(?:KG|L|GAL|CN|PT|QT)\s+([\d,]+\.\d{2})/gi;
+
+        // Fallback looser pattern (covers some wrapped/odd spacing cases)
+        const looseLineRegex =
+          /(\d{1,3})\s+([A-Z0-9.\-]+)[\s\S]{0,120}?x\s*([\d,.]+)\s+(KG|L|GAL|PT|QT)[\s\S]{0,40}?([\d,.]+)\s+\4[\s\S]{0,40}?([\d,.]+)\s+USD\/[A-Z]+[\s\S]{0,30}?([\d,]+\.\d{2})/gi;
+
+        let lines = [];
+        const pushLine = (m) => {
+          const pos = m[1];
+          const part = m[2];
+          const qtyPer = safeNum(m[3]);
+          const unit = m[4];
+          const totalQty = safeNum(m[5]);
+          const unitPrice = safeNum(m[6]);
+          const lineTotal = safeNum(m[7]);
+
+          const item = {
+            invoice_number: inv,
+            invoice_date,
+            invoice_total,
+            supplier,
+            position: pos,
+            part_number: part,
+            quantity: trimZeros(totalQty),
+            unit: unit,
+            unit_price: trimZeros(unitPrice),
+            line_total: trimZeros(lineTotal),
+            net_weight: '', // can be mapped from “Total net steel weight per KG” if needed
+            country_of_origin: '',
+            description: ''
+          };
+
+          // Quantity reconciliation using unit price
+          // If Q * P ≠ line_total, try to infer quantity (rounded or per-piece × count)
+          reconcileQuantity(item);
+
+          // Country of origin (common at end of each block)
+          const coo = block.match(/Country\s+of\s+origin:\s*(?:Federal\s+Republic\s+of\s+)?([A-Za-z]+)/i);
+          if(coo){
+            let c = coo[1].toLowerCase();
+            const map = {germany:'DE', netherlands:'NL', slovenia:'SI', japan:'JP', usa:'US'};
+            item.country_of_origin = map[c] || c.toUpperCase().slice(0,2);
+          }
+
+          lines.push(item);
+        };
+
+        let m;
+        while((m=lineRegex.exec(block))!==null){ pushLine(m); }
+        if(lines.length===0){ // try looser
+          while((m=looseLineRegex.exec(block))!==null){ pushLine(m); }
+        }
+
+        if(lines.length===0){
+          setNotes(inv, ['No line items parsed (PDF line wrapping). Add lines manually with “Insert Below”.']);
+        }
+
+        // Figure “missing positions” (deterministic gaps)
+        const posNums = lines.map(r=>Number(r.position)).filter(n=>Number.isFinite(n)).sort((a,b)=>a-b);
+        const missing = detectMissingPositions(posNums, inv);
+        if(missing.length){
+          setNotes(inv, [`Missing positions detected: ${missing.join(', ')}. Use “Insert Below” to add.`]);
+        }
+
+        allData.push(...lines);
+      }
+    }
+
+    // Convert "1,234.56" -> 1234.56
+    function safeNum(s){ return Number(String(s||'').replace(/[, ]/g,'')) || 0; }
+    function trimZeros(n){ return (Number(n)||0).toString(); }
+
+    // Quantity reconciliation:
+    // Try: 1) direct round, 2) integer close, 3) deduce per-piece × count from surrounding text
+    function reconcileQuantity(item){
+      const q = safeNum(item.quantity);
+      const p = safeNum(item.unit_price);
+      const t = safeNum(item.line_total);
+      if(p>0){
+        const qCalc = t / p;
+        const round2 = Math.round(qCalc*100)/100;
+        const round3 = Math.round(qCalc*1000)/1000;
+
+        // If current q is off by > 1% from either rounded suggestion, pick the closest
+        const off = Math.abs(q*p - t);
+        const offPct = t ? off/t : 0;
+        if(offPct > 0.01){
+          // prefer round3 if it yields exact to cents
+          const err2 = Math.abs(round2*p - t);
+          const err3 = Math.abs(round3*p - t);
+          const chosen = err3 <= err2 ? round3 : round2;
+          if(Math.abs(chosen*p - t) <= Math.max(0.02, t*0.001)){
+            item.quantity = trimZeros(chosen);
+            setNotes(item.invoice_number, [
+              `Adjusted quantity on position ${item.position} from ${q} to ${item.quantity} based on unit price × qty ≈ line total.`
+            ]);
+          }else{
+            // leave but flag mismatch in UI
+            setNotes(item.invoice_number, [
+              `Check quantity on position ${item.position}: qty×price ≠ line total (${q}×${p} vs ${t}).`
+            ]);
+          }
+        }
+      }
+    }
+
+    // Known hard gaps (from prior analysis). Add/adjust as needed.
+    function detectMissingPositions(sortedPositions, invoice){
+      const known = {
+        // example: '90286988': [26, 28, 67],
+      };
+      if(!known[invoice]) return [];
+      const have = new Set(sortedPositions);
+      return known[invoice].filter(n=>!have.has(n));
+    }
+
+    /* -------------------------
+       UI / Rendering
+    ------------------------- */
+    function setupInterface(){
+      // Build invoice select
+      const sel = document.getElementById('invoiceSelect');
+      sel.innerHTML = '<option value="">Select an invoice…</option>';
+      const meta = {};
+      allData.forEach(r=>{
+        if(!meta[r.invoice_number]){
+          meta[r.invoice_number] = {date:r.invoice_date, supplier:r.supplier, total:r.invoice_total};
+        }
+      });
+      Object.keys(meta).forEach(inv=>{
+        const o = document.createElement('option');
+        o.value = inv;
+        const tot = safeNum(meta[inv].total);
+        o.textContent = `Invoice ${inv} — ${meta[inv].date||'-'} — ${meta[inv].supplier||'-'} — ${money(tot)}`;
+        sel.appendChild(o);
+      });
+
+      document.getElementById('controls').style.display='flex';
+
+      sel.onchange = () => {
+        currentInvoice = sel.value;
+        if(currentInvoice){ loadInvoiceData(); }
+        else { hideDataView(); }
+      };
+
+      document.getElementById('exportBtn').onclick = exportToExcel;
+
+      // Auto select the first invoice
+      if(sel.options.length>1){
+        sel.selectedIndex = 1;
+        currentInvoice = sel.value;
+        loadInvoiceData();
+      }
+    }
+
+    function hideDataView(){
+      document.getElementById('stats').style.display='none';
+      document.getElementById('metaGrid').style.display='none';
+      document.getElementById('tableContainer').style.display='none';
+      renderNotes(); // still show notes (probably none)
+    }
+
+    function loadInvoiceData(){
+      const items = allData.filter(d=>d.invoice_number===currentInvoice);
+      if(!items.length){ hideDataView(); return; }
+
+      // Stats
+      const inv = items[0];
+      document.getElementById('statInvoice').textContent = currentInvoice;
+      document.getElementById('statTotal').textContent = money(inv.invoice_total||0);
+      document.getElementById('stats').style.display='grid';
+
+      // Editable meta
+      document.getElementById('metaGrid').style.display='grid';
+      document.getElementById('invoiceDateInput').value = inv.invoice_date || '';
+      document.getElementById('supplierInput').value = inv.supplier || '';
+      document.getElementById('invoiceTotalInput').value = inv.invoice_total || '';
+
+      // Missing positions alert (from detectMissingPositions)
+      const positions = items.map(x=>Number(x.position)).filter(Number.isFinite).sort((a,b)=>a-b);
+      const missing = detectMissingPositions(positions, currentInvoice);
+      const alertDiv = document.getElementById('missingItemsAlert');
+      if(missing.length){
+        document.getElementById('missingItemsText').textContent =
+          `This invoice is missing positions ${missing.join(', ')}. Use “Insert Below” to add them manually.`;
+        alertDiv.style.display='block';
+      }else{
+        alertDiv.style.display='none';
+      }
+
+      // Table
+      document.getElementById('tableContainer').style.display='block';
+      renderTable(items);
+      renderNotes();
+      updateValidation();
+    }
+
+    function renderTable(items){
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      items.forEach(item => tbody.appendChild(makeRow(item)));
+    }
+
+    function makeRow(item){
+      const tr = document.createElement('tr');
+      const idx = allData.indexOf(item);
+
+      const qty = safeNum(item.quantity);
+      const price = safeNum(item.unit_price);
+      const calc = qty * price;
+      const lineTotal = safeNum(item.line_total);
+      const mismatch = Math.abs(calc - lineTotal) > Math.max(0.02, lineTotal*0.001);
+
+      tr.innerHTML = `
+        <td><input type="text" data-f="position" value="${item.position||''}"></td>
+        <td><input type="text" data-f="part_number" value="${item.part_number||''}"></td>
+        <td><input type="number" step="any" data-f="quantity" value="${item.quantity||''}"></td>
+        <td><input type="text" data-f="unit" value="${item.unit||''}"></td>
+        <td><input type="number" step="any" data-f="unit_price" value="${item.unit_price||''}"></td>
+        <td><input type="number" step="any" data-f="line_total" value="${item.line_total||''}"></td>
+        <td class="calc-cell ${mismatch?'calc-mismatch':''}" title="quantity × unit price">${
+          money(calc)
+        }</td>
+        <td><input type="number" step="any" data-f="net_weight" value="${item.net_weight||''}"></td>
+        <td><input type="text" maxlength="2" data-f="country_of_origin" value="${item.country_of_origin||''}"></td>
+        <td><input type="text" data-f="description" value="${item.description||''}"></td>
+        <td>
+          <button class="btn btn-warning" onclick="insertRowBelow(${idx})">Insert Below</button>
+          <button class="btn btn-danger" onclick="deleteRow(${idx})">Delete</button>
+        </td>
+      `;
+
+      tr.querySelectorAll('input').forEach(inp=>{
+        inp.addEventListener('change', e=>{
+          const f = e.target.dataset.f;
+          const v = e.target.value;
+          updateItem(idx, f, v);
+          // If qty or price or line total changed, try to reconcile
+          if(f==='quantity' || f==='unit_price' || f==='line_total'){
+            reconcileQuantity(allData[idx]);
+          }
+          loadInvoiceData();
+        });
+      });
+
+      return tr;
+    }
+
+    function updateItem(index, field, value){
+      if(!allData[index]) return;
+      if(field==='quantity' || field==='unit_price' || field==='line_total'){
+        allData[index][field] = String(value).trim();
+      }else{
+        allData[index][field] = value;
+      }
+    }
+
+    // Exposed for buttons
+    window.insertRowBelow = function(index){
+      if(!allData[index]) return;
+      const base = allData[index];
+      const newItem = {
+        invoice_number: base.invoice_number,
+        invoice_date: base.invoice_date || '',
+        invoice_total: base.invoice_total || '',
+        supplier: base.supplier || '',
+        position: '',
+        part_number: '',
+        quantity: '0',
+        unit: '',
+        unit_price: '0',
+        line_total: '0',
+        net_weight: '',
+        country_of_origin: '',
+        description: ''
+      };
+      allData.splice(index+1, 0, newItem);
+      showAlert('Row inserted', 'success');
+      loadInvoiceData();
+    };
+
+    window.deleteRow = function(index){
+      const item = allData[index];
+      if(!item) return;
+      if(!confirm('Delete this line item?')) return;
+      allData.splice(index,1);
+      showAlert('Row deleted', 'success');
+      loadInvoiceData();
+    };
+
+    function updateValidation(){
+      const items = allData.filter(r=>r.invoice_number===currentInvoice);
+      if(!items.length) return;
+      const total = safeNum(items[0].invoice_total||0);
+      const sum = items.reduce((a,b)=>a + safeNum(b.line_total), 0);
+      const diff = Math.abs(total - sum);
+      document.getElementById('statTotal').textContent = money(total);
+      document.getElementById('statSum').textContent = money(sum);
+      const d = document.getElementById('statDiff');
+      d.textContent = money(diff);
+      d.classList.toggle('ok', diff < 0.02);
+      d.classList.toggle('error', diff >= 0.02);
+    }
+
+    /* -------------------------
+       Excel export (template-friendly columns)
+    ------------------------- */
+    function exportToExcel(){
+      const scope = currentInvoice ? allData.filter(d=>d.invoice_number===currentInvoice) : allData;
+      if(!scope.length){ showAlert('No data to export'); return; }
+
+      const headers = [
+        'InvoiceNumber','InvoiceDate','InvoiceTotal','SupplierMID','SupplierName',
+        'BuyerPartNumber','SupplierPartNumber','Quantity','UnitOfMeasure','Description',
+        'UnitPrice','ItemTotal','CurrencyCode','ExchangeRate','CountryOfOrigin',
+        'CountryOfExport','DateOfExport','PortOfLading','RelatedParty','PO_Number',
+        'PO_Date','GrossWeight','GrossWeightUnit','NetWeight','TariffNumber',
+        'TariffDescription','Quantity1','UnitOfMeasure1','Quantity2','UnitOfMeasure2',
+        'Quantity3','UnitOfMeasure3','PrimarySPI','SecondarySPI','DeliverTo',
+        'SoldTo','SecondaryTariffNumber'
+      ];
+
+      const rows = [headers];
+      scope.forEach(it=>{
+        const r = new Array(37).fill('');
+        r[0]=it.invoice_number;
+        r[1]=it.invoice_date;
+        r[2]=safeNum(it.invoice_total)||'';
+        r[4]=it.supplier;
+        r[6]=it.part_number;
+        r[7]=safeNum(it.quantity)||'';
+        r[8]=it.unit;
+        r[9]=it.description;
+        r[10]=safeNum(it.unit_price)||'';
+        r[11]=safeNum(it.line_total)||'';
+        r[14]=it.country_of_origin;
+        r[23]=safeNum(it.net_weight)||'';
+        rows.push(r);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      XLSX.writeFile(wb, `IES_Template_${currentInvoice||'ALL'}_${ts}.xlsx`);
+      showAlert('Exported to Excel', 'success');
+    }
+
+    /* -------------------------
+       Invoice meta edits apply to all lines of that invoice
+    ------------------------- */
+    document.getElementById('invoiceDateInput').addEventListener('change', ()=>{
+      if(!currentInvoice) return showAlert('Select an invoice first');
+      const v = document.getElementById('invoiceDateInput').value;
+      allData.forEach(d=>{ if(d.invoice_number===currentInvoice) d.invoice_date = v; });
+      loadInvoiceData();
+    });
+    document.getElementById('supplierInput').addEventListener('change', ()=>{
+      if(!currentInvoice) return showAlert('Select an invoice first');
+      const v = document.getElementById('supplierInput').value;
+      allData.forEach(d=>{ if(d.invoice_number===currentInvoice) d.supplier = v; });
+      loadInvoiceData();
+    });
+    document.getElementById('invoiceTotalInput').addEventListener('change', ()=>{
+      if(!currentInvoice) return showAlert('Select an invoice first');
+      const v = document.getElementById('invoiceTotalInput').value;
+      allData.forEach(d=>{ if(d.invoice_number===currentInvoice) d.invoice_total = v; });
+      loadInvoiceData();
+    });
+  </script>
 </body>
 </html>

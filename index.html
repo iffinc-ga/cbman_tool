@@ -324,7 +324,7 @@
             }
 
             // ====== LINE PARSING (two patterns) ======
-            const UNIT_WORD = '(?:carton|bucket|pail|tin|can|barrel|canister|cartridge|piece(?:\\(s\\))?|can(?:\\(s\\))?|pail(?:\\(s\\))?|tin(?:\\(s\\))?|Kilogramme)';
+            const UNIT_WORD = '(?:carton|bucket|pail|tin|can|barrel|canister|cartridge|bottle(?:\(s\))?|piece(?:\(s\))?|can(?:\(s\))?|pail(?:\(s\))?|tin(?:\(s\))?|Kilogramme)';
 
             // Pattern A: lines with "x ..." segment
             const linePatternA = new RegExp(

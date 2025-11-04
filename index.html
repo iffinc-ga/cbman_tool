@@ -243,21 +243,23 @@
 
   // ===== helpers =====
   function normalizeSpaces(s) {
-    // Replace NBSP and other unicode spaces with normal space, collapse multiples, trim
     return (s || '')
       .replace(/[\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
   function looseToken(str) {
-    // turn "U S D / P C" into /U\s*S\s*D\s*\/\s*P\s*C/
     return str.split('').map(ch => {
       if (/\s/.test(ch)) return '\\s*';
       return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }).join('');
   }
+
+  const PRICE_UNITS = '(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN)'; // added TIN
+  const MEAS = '(?:L|KG|GAL|PT|QT|FOZ|PC|CN|TIN)';         // allow measures after container qty too
+
   const USD_SLASH_UNIT = new RegExp(
-    looseToken('USD') + '\\s*\\/\\s*' + '(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)', 'i'
+    looseToken('USD') + '\\s*\\/\\s*' + PRICE_UNITS, 'i'
   );
 
   function segmentInvoices(text) {
@@ -291,32 +293,26 @@
 
     for (const seg of segments) {
       const invoiceNum = seg.invoice_number;
-      let sectionText = seg.body || '';
-
-      // Normalize aggressively to survive split words
-      sectionText = normalizeSpaces(sectionText);
+      let sectionText = normalizeSpaces(seg.body || '');
 
       if (DEBUG) {
         console.log(`\n=== PROCESSING INVOICE ${invoiceNum} ===`);
         console.log('First 400 chars:', sectionText.substring(0, 400));
       }
 
-      // date
-      const dateMatch = sectionText.match(/^\s*(\d{2}\/\d{2}\/\d{4})/);
+      // date (first MM/DD/YYYY if present)
+      const dateMatch = sectionText.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);
       const invoiceDate = dateMatch ? dateMatch[1] : '';
 
-      // supplier (simple heuristics)
+      // supplier heuristic
       const firstPart = sectionText.substring(0, 800);
       let supplier = '';
       const supplierPattern = /(Rüdt Industrielacke GmbH & Co\. KG|Norix Lackf?abrik GmbH & Co\. KG|Finalin GmbH & Co\. KG|Mankiewicz.*?GmbH.*?Co\.?\s*KG|Mankiewicz Coatings, LLC)/i;
       const supplierMatch = firstPart.match(supplierPattern);
-      if (supplierMatch) {
-        supplier = normalizeSpaces(supplierMatch[0]);
-      } else if (/Mankiewicz/i.test(firstPart)) {
-        supplier = 'Mankiewicz Coatings, LLC';
-      }
+      if (supplierMatch) supplier = normalizeSpaces(supplierMatch[0]);
+      else if (/Mankiewicz/i.test(firstPart)) supplier = 'Mankiewicz Coatings, LLC';
 
-      // invoice total
+      // invoice total (best-effort)
       let invoiceTotal = '';
       const overallMatches = [...sectionText.matchAll(/Overall\s+amount\s+in\s+USD\s+([\d,]+\.?\d*)/gi)];
       if (overallMatches.length) invoiceTotal = overallMatches.at(-1)[1].replace(/,/g, '');
@@ -335,37 +331,35 @@
       }
 
       // ===== LINE PARSERS =====
-      // Units: allow "(s)" and case-insensitive
-      const UNIT_WORD = '(?:carton|bucket|pail|tin|can|barrel|canister|cartridge|piece(?:\\(s\\))?|Kilogramme)';
-      const UNIT_WORD_RE = new RegExp(UNIT_WORD, 'i');
-
-      // Pattern A: lines with "x …" segment
+      // Pattern A: explicit "x ..." (keep but rarely used here)
       const linePatternA = new RegExp(
-        String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*(?:\([^)]+\)\s*)?` +
-        String.raw`x\s*([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
-        String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
+        String.raw`(\d+)\s+([A-Z0-9.\-]+).*?` + // pos + part (then any desc)
+        String.raw`([\d,]+\.?\d+)\s+${MEAS}\s*(?:\([^)]+\)\s*)?` + // container qty + unit
+        String.raw`x\s*([\d,]+\.?\d+)\s+([A-Z]+)\s+` +             // pack size qty + unit
+        String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +                 // total qty + unit
         String.raw`([\d.]+)\s+` + looseToken('USD') + String.raw`\s*\/\s*` +
-        String.raw`(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)\s+` +
+        String.raw`${PRICE_UNITS}\s+` +
         String.raw`([\d,]+\.?\d+)`,
         'gi'
       );
 
-      // Pattern B: no "x …" segment (“each/PC” style)
+      // Pattern B: no "x ..." (PC style) – keep for variants
       const linePatternB = new RegExp(
-        String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*` +
+        String.raw`(\d+)\s+([A-Z0-9.\-]+).*?` +
+        String.raw`([\d,]+\.?\d+)\s+${MEAS}\s*` +
         String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
         String.raw`([\d.]+)\s+` + looseToken('USD') + String.raw`\s*\/\s*` +
-        String.raw`(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)\s+` +
+        String.raw`${PRICE_UNITS}\s+` +
         String.raw`([\d,]+\.?\d+)`,
         'gi'
       );
 
-      // Pattern C (fallback): anchor on "USD / UNIT price total"
-      // Capture trailing part first, then look back for totalQty/totalUnit and a likely "pos part containerQty unitword"
-      const linePatternC = new RegExp(
-        String.raw`([\d.]+)\s+` + looseToken('USD') + String.raw`\s*\/\s*` +
-        String.raw`(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)\s+` +
-        String.raw`([\d,]+\.?\d+)`, 'gi'
+      // Pattern C (fallback): anchor on "USD / UNIT <lineTotal>", look back for quantities
+      const anchorC = new RegExp(
+        String.raw`([\d.,]+)\s+` + looseToken('USD') + String.raw`\s*\/\s*` +
+        String.raw`${PRICE_UNITS}\s+` +
+        String.raw`([\d,]+\.?\d+)`,
+        'gi'
       );
 
       const positionsFound = new Set();
@@ -377,7 +371,7 @@
       }
 
       function chooseQty(priceUnit, containerQty, totalQty, totalUnit) {
-        if (['CN','PC','CAT'].includes(priceUnit)) return { q: containerQty || totalQty, u: priceUnit };
+        if (['CN','PC','CAT','TIN'].includes(priceUnit)) return { q: containerQty || totalQty, u: priceUnit };
         if (['KG','GAL','PT','QT','FOZ','L'].includes(priceUnit)) return { q: totalQty, u: priceUnit };
         if (priceUnit === totalUnit) return { q: totalQty, u: priceUnit };
         return { q: totalQty, u: priceUnit };
@@ -403,9 +397,9 @@
         });
       }
 
-      // Try Pattern A
       let countA = 0, countB = 0, countC = 0;
 
+      // A
       let mA;
       while ((mA = linePatternA.exec(sectionText)) !== null) {
         const position = mA[1];
@@ -416,16 +410,16 @@
           partNumber: (mA[2] || ''),
           containerQty: (mA[3] || '').replace(/,/g, ''),
           totalQty: (mA[6] || '').replace(/,/g, ''),
-          totalUnit: mA[7] || '',
+          totalUnit: (mA[7] || '').toUpperCase(),
           unitPrice: mA[8] || '',
-          priceUnit: mA[9] || '',
+          priceUnit: (mA[9] || '').toUpperCase(),
           lineTotal: (mA[10] || '').replace(/,/g, ''),
           matchIndex: mA.index ?? 0
         });
         countA++;
       }
 
-      // Try Pattern B
+      // B
       let mB;
       while ((mB = linePatternB.exec(sectionText)) !== null) {
         const position = mB[1];
@@ -436,33 +430,35 @@
           partNumber: (mB[2] || ''),
           containerQty: (mB[3] || '').replace(/,/g, ''),
           totalQty: (mB[4] || '').replace(/,/g, ''),
-          totalUnit: mB[5] || '',
+          totalUnit: (mB[5] || '').toUpperCase(),
           unitPrice: mB[6] || '',
-          priceUnit: mB[7] || '',
+          priceUnit: (mB[7] || '').toUpperCase(),
           lineTotal: (mB[8] || '').replace(/,/g, ''),
           matchIndex: mB.index ?? 0
         });
         countB++;
       }
 
-      // Fallback Pattern C (scan every USD/UNIT occurrence and look back a small window)
+      // C (robust): for each USD/unit anchor, look back ~350 chars for pos/part/container+total quantities
       let mC;
-      while ((mC = linePatternC.exec(sectionText)) !== null) {
-        const unitPrice = mC[1] || '';
+      while ((mC = anchorC.exec(sectionText)) !== null) {
+        const unitPrice = (mC[1] || '').replace(/,/g, '');
         const priceUnit = (mC[2] || '').toUpperCase();
         const lineTotal = (mC[3] || '').replace(/,/g, '');
         const anchor = mC.index ?? 0;
 
-        // Look back up to 140 chars for: totalQty totalUnit and earlier position + part + containerQty + unitword
-        const lookBackStart = Math.max(0, anchor - 140);
+        const lookBackStart = Math.max(0, anchor - 350);
         const window = sectionText.substring(lookBackStart, anchor);
 
-        // totalQty + totalUnit near the anchor
-        const qtyUnitMatch = window.match(/([\d,]+\.?\d+)\s+([A-Z]{1,3})\s*$/i);
-        // earlier: position + part + containerQty + unitWord somewhere before that
-        const headMatch = window.match(/(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+([A-Za-z()]+)\s+/i);
+        // Grab nearest "... totalQty totalUnit" at end of window
+        const qtyUnitMatch = window.match(new RegExp(`([\\d,]+\\.?\\d*)\\s+(${MEAS})\\s*$`, 'i'));
 
-        if (qtyUnitMatch && headMatch && UNIT_WORD_RE.test(headMatch[4])) {
+        // Earlier in the same window: "pos part ... containerQty unit"
+        const headMatch = window.match(new RegExp(
+          String.raw`(\d+)\s+([A-Z0-9.\-]+).*?([\d,]+\.?\d*)\s+${MEAS}\b`, 'i'
+        ));
+
+        if (qtyUnitMatch && headMatch) {
           const position = headMatch[1];
           if (positionsFound.has(position)) continue;
           positionsFound.add(position);

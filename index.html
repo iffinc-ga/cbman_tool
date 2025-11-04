@@ -166,6 +166,7 @@
     let allData = [];
     let currentInvoice = '';
     let invoiceOrder = [];
+    let uploadedPdfName = '';
 
     // Used to preserve focus across re-renders when tabbing/entering
     let _nextFocusId = null;
@@ -203,6 +204,8 @@
             showAlert('Please upload a PDF file', 'error');
             return;
         }
+        // remember uploaded PDF name for export naming
+        uploadedPdfName = (file.name || '').replace(/\.pdf$/i, '');
 
         document.getElementById('uploadSection').style.display = 'none';
         document.getElementById('loading').style.display = 'block';
@@ -327,7 +330,7 @@
                 String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*(?:\([^\)]*\)\s*)?` +
                 String.raw`x\s*([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
                 String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
-                String.raw`([\d.]+)\s+USD\/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)\s+` +
+                String.raw`([\d.]+)\s+USD\/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN)\s+` +
                 String.raw`([\d,]+\.?\d+)`,
                 'gi'
             );
@@ -336,7 +339,7 @@
             const linePatternB = new RegExp(
                 String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*` +
                 String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
-                String.raw`([\d.]+)\s+USD\/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT)\s+` +
+                String.raw`([\d.]+)\s+USD\/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN)\s+` +
                 String.raw`([\d,]+\.?\d+)`,
                 'gi'
             );
@@ -352,7 +355,7 @@
                 } = c;
 
                 let quantity, unit;
-                if (['CN','PC','CAT'].includes(priceUnit)) {
+                if (['CN','PC','CAT','TIN'].includes(priceUnit)) {
                     quantity = containerQty || totalQty;
                     unit = priceUnit;
                 } else if (['KG','GAL','PT','QT','FOZ','L'].includes(priceUnit)) {
@@ -452,7 +455,7 @@
                 delete item.matchIndex;
             });
 
-            // === NEW: If no lines parsed, create a single blank line so user can enter data manually ===
+            // If no lines parsed, create a single blank line so user can enter data manually
             if (lineItems.length === 0) {
                 lineItems.push({
                     invoice_number: invoiceNum,
@@ -719,6 +722,12 @@
         ];
         const rows = [headers];
 
+        function normalizePartNumber(p) {
+            const s = (p || '').toString();
+            const firstSegment = s.split('.')[0];
+            return firstSegment.slice(0, 5);
+        }
+
         allData.forEach(item => {
             const row = new Array(37).fill('');
             row[0] = item.invoice_number;
@@ -727,7 +736,7 @@
             row[3] = '';
             row[4] = item.supplier;
             row[5] = '';
-            row[6] = item.part_number;
+            row[6] = normalizePartNumber(item.part_number); // <= normalized to max 5 chars
             row[7] = parseFloat(item.quantity) || '';
             row[8] = item.unit;
             row[9] = '';
@@ -744,7 +753,8 @@
         XLSX.utils.book_append_sheet(wb, ws, 'Invoice Data');
 
         const date = new Date().toISOString().slice(0, 10);
-        const filename = `all_invoices_${date}.xlsx`;
+        const base = uploadedPdfName || `all_invoices_${date}`;
+        const filename = `${base}.xlsx`;
         XLSX.writeFile(wb, filename);
 
         showAlert(`✅ Exported all ${allData.length} line items from ${new Set(allData.map(d => d.invoice_number)).size} invoices!`, 'success');
@@ -754,6 +764,7 @@
         allData = [];
         currentInvoice = '';
         invoiceOrder = [];
+        uploadedPdfName = '';
         document.getElementById('controls').style.display = 'none';
         hideDataView();
         document.getElementById('uploadSection').style.display = 'block';

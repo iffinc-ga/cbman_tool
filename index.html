@@ -324,14 +324,14 @@
             }
 
             // ====== LINE PARSING (two patterns) ======
-            const UNIT_WORD = '(?:carton|bucket|pail|tin|can|barrel|canister|cartridge|bottle(?:\(s\))?|piece(?:\(s\))?|can(?:\(s\))?|pail(?:\(s\))?|tin(?:\(s\))?|Kilogramme)';
+            const UNIT_WORD = '(?:carton|bucket|pail|tin|can|barrel|canister|cartridge|bottle(?:s|\(s\))?|piece(?:\(s\))?|can(?:\(s\))?|pail(?:\(s\))?|tin(?:\(s\))?|Kilogramme)';
 
             // Pattern A: lines with "x ..." segment
             const linePatternA = new RegExp(
                 String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*(?:\([^\)]*\)\s*)?` +
                 String.raw`x\s*([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
                 String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
-                String.raw`([\d.]+)\s+USD/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN|BTL)\s+` +
+                String.raw`([\d.,]+)\s+USD/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN|BTL)\s+` +
                 String.raw`([\d,]+\.?\d+)`,
                 'gi'
             );
@@ -340,7 +340,7 @@
             const linePatternB = new RegExp(
                 String.raw`(\d+)\s+([A-Z0-9.\-]+)\s+([\d,]+\.?\d*)\s+${UNIT_WORD}\s*` +
                 String.raw`([\d,]+\.?\d+)\s+([A-Z]+)\s+` +
-                String.raw`([\d.]+)\s+USD/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN|BTL)\s+` +
+                String.raw`([\d.,]+)\s+USD/(FOZ|KG|GAL|QT|PT|CN|PC|L|CAT|TIN|BTL)\s+` +
                 String.raw`([\d,]+\.?\d+)`,
                 'gi'
             );
